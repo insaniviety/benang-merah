@@ -25,7 +25,7 @@ const TAGS = ["Ide", "Dialog", "Worldbuilding", "Plot"];
 function Capture() {
   const { t, lang, notes, addNote } = useStore();
   const [text, setText] = useState("");
-  const [tag, setTag] = useState<string>(TAGS[0]!);
+  const [tag, setTag] = useState<string>("Ide");
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   const submit = () => {
