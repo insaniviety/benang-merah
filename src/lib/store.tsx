@@ -154,6 +154,12 @@ const seedNotes: Note[] = [
   { id: "n2", text: "Dialog Mei Lin: \"Kau pulang membawa pedang, bukan permintaan maaf. Khas.\"", createdAt: "2026-09-17T08:30:00Z", tag: "Dialog" },
 ];
 
+export interface AuthUser {
+  name: string;
+  email: string;
+  plan: string;
+}
+
 interface StoreValue {
   theme: Theme;
   toggleTheme: () => void;
@@ -173,6 +179,11 @@ interface StoreValue {
   addNote: (text: string, tag: string) => void;
   newStoryOpen: boolean;
   setNewStoryOpen: (v: boolean) => void;
+  user: AuthUser | null;
+  signIn: (u: AuthUser) => void;
+  signOut: () => void;
+  authOpen: boolean;
+  setAuthOpen: (v: boolean) => void;
 }
 
 const Ctx = createContext<StoreValue | null>(null);
@@ -186,6 +197,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [allRelations] = useState<Relation[]>(seedRelations);
   const [notes, setNotes] = useState<Note[]>(seedNotes);
   const [newStoryOpen, setNewStoryOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("bm-theme") as Theme | null;
@@ -235,6 +248,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => [{ id: uid(), text, tag, createdAt: new Date().toISOString() }, ...prev]);
   }, []);
 
+  const signIn = useCallback((u: AuthUser) => {
+    setUser(u);
+    setAuthOpen(false);
+  }, []);
+  const signOut = useCallback(() => setUser(null), []);
+
   const value = useMemo<StoreValue>(
     () => ({
       theme,
@@ -255,8 +274,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addNote,
       newStoryOpen,
       setNewStoryOpen,
+      user,
+      signIn,
+      signOut,
+      authOpen,
+      setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, allRelations, notes, addNote, newStoryOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
