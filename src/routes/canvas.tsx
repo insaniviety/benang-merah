@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { X, Swords, Handshake, EyeOff, Heart } from "lucide-react";
 import { useStore, type RelationType } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
-import { Avatar } from "./characters";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/canvas")({
