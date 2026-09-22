@@ -14,7 +14,7 @@ export function NewStoryDialog() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("Fantasy");
-  const [language, setLanguage] = useState(STORY_LANGS[0]);
+  const [language, setLanguage] = useState<string>(STORY_LANGS[0]!);
   const [synopsis, setSynopsis] = useState("");
 
   const submit = () => {
