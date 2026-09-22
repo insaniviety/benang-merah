@@ -74,7 +74,7 @@ function Canvas() {
       <div className="relative flex flex-1 overflow-hidden">
         <svg
           ref={svgRef}
-          viewBox="0 0 800 560"
+          viewBox="0 0 800 560" preserveAspectRatio="xMidYMin meet"
           className="paper-grain h-full w-full touch-none select-none"
           onPointerMove={(e) => {
             if (!drag.current) return;
