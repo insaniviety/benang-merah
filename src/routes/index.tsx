@@ -5,6 +5,8 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,6 +26,7 @@ function Dashboard() {
   const { t, activeStory, updateContent, characters } = useStore();
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
+  const [previewing, setPreviewing] = useState<Alert | null>(null);
 
   const alerts = useMemo<Alert[]>(() => {
     if (!activeStory) return [];
@@ -43,6 +46,35 @@ function Dashboard() {
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
   const visible = alerts.filter((a) => !dismissed.includes(a.id));
+
+  const paragraphs = activeStory.content.split(/\n\s*\n/);
+  const pickIndex = (a: Alert) => {
+    const n = paragraphs.length;
+    const want = { a1: n - 1, a2: 1, a3: 0, a4: Math.floor(n / 2) }[a.id] ?? 0;
+    return Math.max(0, Math.min(n - 1, want));
+  };
+  const hero = characters.find((k) => k.role === "protagonist")?.name ?? "Ia";
+  const villain = characters.find((k) => k.role === "antagonist")?.name ?? "Sang lawan";
+  const suggestFor = (a: Alert, orig: string) => {
+    switch (a.id) {
+      case "a1": return `${orig}\n\nBilah itu tak lagi utuh seperti dulu—bekas patahan di Bab 2 masih tampak sebagai guratan perak yang disatukan kembali oleh pandai besi di Lembah Abu. ${villain} menggenggamnya dengan hati-hati, seolah tahu pedang yang pernah patah tak akan pernah benar-benar setia.`;
+      case "a2": return `Kenangan itu datang tanpa diundang, seperti kabut yang merayap di antara tiang kedai.\n\n${orig}\n\nLalu suara itu memudar, dan yang tersisa hanya kursi kosong di seberang meja.`;
+      case "a3": return orig.replace(/\baku\b/g, "saya").replace(/\bAku\b/g, "Saya");
+      case "a4": return `Hujan turun tipis, membawa bau tanah basah dan karat. Dinginnya batu jembatan merambat dari telapak kaki ${hero} hingga ke tengkuk; di kejauhan, lonceng kuil berdentang sekali, lalu sunyi.\n\n${orig}`;
+      default: return orig;
+    }
+  };
+  const previewOriginal = previewing ? (paragraphs[pickIndex(previewing)] ?? "").trim() : "";
+  const previewSuggestion = previewing ? suggestFor(previewing, previewOriginal) : "";
+  const insert = (text: string) => {
+    if (!previewing) return;
+    const next = [...paragraphs];
+    next[pickIndex(previewing)] = text.trim();
+    updateContent(activeStory.id, next.join("\n\n"));
+    setDismissed((d) => [...d, previewing.id]);
+    setPreviewing(null);
+    toast.success(t.insertedToast);
+  };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col xl:flex-row">
@@ -92,14 +124,22 @@ function Dashboard() {
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">✓ {t.done}</p>
           )}
-          {visible.map((a) => <AlertCard key={a.id} a={a} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
+          {visible.map((a) => <AlertCard key={a.id} a={a} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
         </div>
       </aside>
+      <AiPreviewDialog
+        open={!!previewing}
+        onOpenChange={(v) => !v && setPreviewing(null)}
+        title={previewing?.title ?? ""}
+        original={previewOriginal}
+        suggestion={previewSuggestion}
+        onInsert={insert}
+      />
     </div>
   );
 }
 
-function AlertCard({ a, onDismiss }: { a: Alert; onDismiss: () => void }) {
+function AlertCard({ a, onApply, onDismiss }: { a: Alert; onApply: () => void; onDismiss: () => void }) {
   const { t } = useStore();
   const styles = {
     plot: { icon: AlertTriangle, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
@@ -120,7 +160,7 @@ function AlertCard({ a, onDismiss }: { a: Alert; onDismiss: () => void }) {
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
           <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onDismiss}><Check className="size-3" /> {t.apply}</Button>
+            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>
             <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={onDismiss}><X className="size-3" /> {t.ignore}</Button>
           </div>
         </div>
