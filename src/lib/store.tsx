@@ -174,6 +174,8 @@ interface StoreValue {
   characters: Character[];
   addCharacter: (c: Omit<Character, "id" | "storyId" | "hue" | "x" | "y">) => void;
   moveCharacter: (id: string, x: number, y: number) => void;
+  updateCharacter: (id: string, patch: Partial<Character>) => void;
+  deleteCharacter: (id: string) => void;
   relations: Relation[];
   notes: Note[];
   addNote: (text: string, tag: string) => void;
@@ -194,7 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [stories, setStories] = useState<Story[]>(seedStories);
   const [activeStoryId, setActiveStoryId] = useState("s1");
   const [allCharacters, setCharacters] = useState<Character[]>(seedCharacters);
-  const [allRelations] = useState<Relation[]>(seedRelations);
+  const [allRelations, setRelations] = useState<Relation[]>(seedRelations);
   const [notes, setNotes] = useState<Note[]>(seedNotes);
   const [newStoryOpen, setNewStoryOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -244,6 +246,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCharacters((prev) => prev.map((c) => (c.id === id ? { ...c, x, y } : c)));
   }, []);
 
+  const updateCharacter = useCallback((id: string, patch: Partial<Character>) => {
+    setCharacters((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }, []);
+  const deleteCharacter = useCallback((id: string) => {
+    setCharacters((prev) => prev.filter((c) => c.id !== id));
+    setRelations((prev) => prev.filter((r) => r.from !== id && r.to !== id));
+  }, []);
+
   const addNote = useCallback((text: string, tag: string) => {
     setNotes((prev) => [{ id: uid(), text, tag, createdAt: new Date().toISOString() }, ...prev]);
   }, []);
@@ -269,6 +279,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       characters: allCharacters.filter((c) => c.storyId === activeStoryId),
       addCharacter,
       moveCharacter,
+      updateCharacter,
+      deleteCharacter,
       relations: allRelations.filter((r) => r.storyId === activeStoryId),
       notes,
       addNote,
@@ -280,7 +292,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

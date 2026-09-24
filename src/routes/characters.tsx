@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Quote } from "lucide-react";
-import { useStore, type CharStatus, type Role } from "@/lib/store";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Quote, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useStore, type Character, type CharStatus, type Role } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { NewCharacterDialog } from "@/components/NewCharacterDialog";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +24,9 @@ export const Route = createFileRoute("/characters")({
 });
 
 function Characters() {
-  const { t, characters } = useStore();
+  const { t, characters, deleteCharacter } = useStore();
+  const [editing, setEditing] = useState<Character | null>(null);
+  const [deleting, setDeleting] = useState<Character | null>(null);
   const roleLabel: Record<Role, string> = { protagonist: t.protagonist, antagonist: t.antagonist, supporting: t.supporting };
   const statusLabel: Record<CharStatus, string> = { active: t.active, deceased: t.deceased, missing: t.missing };
   const statusCls: Record<CharStatus, string> = {
@@ -49,6 +55,14 @@ function Characters() {
                   <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", statusCls[c.status])}>{statusLabel[c.status]}</span>
                 </div>
               </div>
+              <div className="-mr-2 -mt-2 flex shrink-0">
+                <Button size="icon" variant="ghost" className="size-8" aria-label={`${t.edit} ${c.name}`} title={t.edit} onClick={() => setEditing(c)}>
+                  <Pencil className="size-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="size-8 text-muted-foreground hover:bg-destructive/15 hover:text-destructive" aria-label={`${t.deleteLabel} ${c.name}`} title={t.deleteLabel} onClick={() => setDeleting(c)}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">{c.bio}</p>
             <div className="mt-4 rounded-xl bg-muted/60 p-3">
@@ -60,6 +74,28 @@ function Characters() {
           </article>
         ))}
       </div>
+
+      <NewCharacterDialog character={editing ?? undefined} open={!!editing} onOpenChange={(v) => !v && setEditing(null)} />
+
+      <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl">{t.deleteCharTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{deleting?.name}</span> — {t.deleteCharDesc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleting) { deleteCharacter(deleting.id); toast.success(t.characterDeleted); } setDeleting(null); }}
+            >
+              <Trash2 className="size-4" /> {t.deleteLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

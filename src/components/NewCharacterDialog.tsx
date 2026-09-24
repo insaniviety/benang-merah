@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { useStore, type CharStatus, type Role } from "@/lib/store";
+import { useStore, type Character, type CharStatus, type Role } from "@/lib/store";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,31 +9,49 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function NewCharacterDialog() {
-  const { t, addCharacter } = useStore();
-  const [open, setOpen] = useState(false);
+export function NewCharacterDialog({ character, open: openProp, onOpenChange }: { character?: Character | undefined; open?: boolean | undefined; onOpenChange?: ((v: boolean) => void) | undefined } = {}) {
+  const { t, addCharacter, updateCharacter } = useStore();
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setOpenState(v));
+  const isEdit = !!character;
   const [name, setName] = useState("");
   const [role, setRole] = useState<Role>("supporting");
   const [status, setStatus] = useState<CharStatus>("active");
   const [diction, setDiction] = useState("");
   const [bio, setBio] = useState("");
 
+  useEffect(() => {
+    if (open && character) {
+      setName(character.name); setRole(character.role); setStatus(character.status);
+      setDiction(character.diction); setBio(character.bio);
+    }
+  }, [open, character]);
+
   const submit = () => {
     if (!name.trim()) return;
-    addCharacter({ name: name.trim(), role, status, diction: diction.trim(), bio: bio.trim() });
-    toast.success(t.characterAdded);
-    setName(""); setDiction(""); setBio("");
+    const data = { name: name.trim(), role, status, diction: diction.trim(), bio: bio.trim() };
+    if (character) {
+      updateCharacter(character.id, data);
+      toast.success(t.characterUpdated);
+    } else {
+      addCharacter(data);
+      toast.success(t.characterAdded);
+      setName(""); setDiction(""); setBio("");
+    }
     setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="shadow-glow"><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
-      </DialogTrigger>
+      {!isEdit && (
+        <DialogTrigger asChild>
+          <Button className="shadow-glow"><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">{t.addCharacter.replace(/^\+\s*/, "")}</DialogTitle>
+          <DialogTitle className="font-display text-2xl">{isEdit ? t.editCharacter : t.addCharacter.replace(/^\+\s*/, "")}</DialogTitle>
           <DialogDescription>{t.charactersSub}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
@@ -76,7 +94,7 @@ export function NewCharacterDialog() {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>{t.cancel}</Button>
-          <Button onClick={submit} disabled={!name.trim()}>{t.save}</Button>
+          <Button onClick={submit} disabled={!name.trim()}>{isEdit ? t.saveChanges : t.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
