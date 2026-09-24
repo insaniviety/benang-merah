@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  variant="destructive"
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                   onClick={() => {
                     signOut();
                     toast.success(t.loggedOut);
