@@ -26,7 +26,7 @@ export function AuthDialog() {
   const [password, setPassword] = useState("");
 
   const nameFromEmail = (e: string) =>
-    e.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Penulis";
+    (e.split("@")[0] ?? "").replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Penulis";
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

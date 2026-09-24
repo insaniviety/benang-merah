@@ -26,7 +26,7 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen } = useStore();
+  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, signOut, setAuthOpen } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  variant="destructive"
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                   onClick={() => {
                     signOut();
                     toast.success(t.loggedOut);
@@ -180,6 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <NewStoryDialog />
+      <AuthDialog />
     </div>
   );
 }
