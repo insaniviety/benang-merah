@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function NewCharacterDialog({ character, open: openProp, onOpenChange }: { character?: Character; open?: boolean; onOpenChange?: (v: boolean) => void } = {}) {
+export function NewCharacterDialog({ character, open: openProp, onOpenChange }: { character?: Character | undefined; open?: boolean | undefined; onOpenChange?: ((v: boolean) => void) | undefined } = {}) {
   const { t, addCharacter, updateCharacter } = useStore();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
