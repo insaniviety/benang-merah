@@ -1,8 +1,9 @@
+import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { dictionaries, type Dict, type Lang } from "./i18n";
 
 export type Theme = "dark" | "light";
-export type ChapterStatus = "done" | "draft" | "planned";
+export type ChapterStatus = "done" | "draft" | "revision" | "planned";
 export type Role = "protagonist" | "antagonist" | "supporting";
 export type CharStatus = "active" | "deceased" | "missing";
 export type RelationType = "conflict" | "alliance" | "secret" | "romance";
@@ -14,6 +15,9 @@ export interface Chapter {
   status: ChapterStatus;
   summary: string;
   words: number;
+  content: string;
+  target: number;
+  updatedAt: string;
 }
 export interface Story {
   id: string;
@@ -24,6 +28,7 @@ export interface Story {
   updatedAt: string;
   chapters: Chapter[];
   content: string;
+  activeChapterId?: string | undefined;
 }
 export interface Character {
   id: string;
@@ -55,6 +60,15 @@ export interface Note {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+const countWords = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+function mk(c: Omit<Chapter, "content" | "target" | "updatedAt">): Chapter {
+  const content = c.words
+    ? `${c.summary}\n\n${c.title}. Kalimat pembuka bab ini masih menggema dari bab sebelumnya—sunyi, penuh firasat, dan menunggu untuk dibaca ulang.\n\nDi sinilah penulis menata ulang ritme, memeriksa dialog, dan memastikan setiap benang cerita tetap terikat pada benang merahnya.`
+    : "";
+  const day = 10 + (c.number % 9);
+  return { ...c, content, target: Math.max(3000, c.words), updatedAt: `2026-09-${day}T10:00:00Z` };
+}
+
 const seedStories: Story[] = [
   {
     id: "s1",
@@ -67,11 +81,11 @@ const seedStories: Story[] = [
     content:
       "Angin dari utara membawa bau besi dan hujan.\n\nLing Yue berdiri di ambang gerbang Lembah Sembilan Naga, jubahnya yang lusuh berkibar seperti bendera yang lupa kepada siapa ia berkibar. Sepuluh tahun. Sepuluh tahun sejak ia dibuang, dan gerbang itu masih setinggi dulu, masih diukir dengan naga yang sama—hanya saja kini matanya tampak lebih lelah.\n\n\"Kau tidak seharusnya kembali,\" suara itu datang dari balik kabut. Tenang. Terlalu tenang.\n\nLing Yue tidak menoleh. Ia tahu suara itu. Ia telah mendengarnya di setiap mimpi buruknya. \"Dan kau tidak seharusnya membunuh Guru, Kakak Seperguruan.\"\n\nHening. Lalu tawa kecil, hampir seperti helaan napas. \"Kau masih memanggilku begitu.\"\n\n",
     chapters: [
-      { id: "c1", number: 1, title: "Gerbang yang Lupa", status: "done", summary: "Ling Yue kembali ke lembah setelah sepuluh tahun pembuangan.", words: 3120 },
-      { id: "c2", number: 2, title: "Bayangan di Paviliun Timur", status: "done", summary: "Pertemuan pertama dengan Shen Hao; luka lama terbuka.", words: 2870 },
-      { id: "c3", number: 3, title: "Surat yang Tak Pernah Dikirim", status: "done", summary: "Mei Lin menemukan surat wasiat sang Guru.", words: 2410 },
-      { id: "c4", number: 4, title: "Bulan Merah Pertama", status: "draft", summary: "Duel di jembatan batu; rahasia Shen Hao setengah terungkap.", words: 1560 },
-      { id: "c5", number: 5, title: "Sembilan Naga Terbangun", status: "planned", summary: "Klimaks di altar kuno.", words: 0 },
+      mk({ id: "c1", number: 1, title: "Gerbang yang Lupa", status: "done", summary: "Ling Yue kembali ke lembah setelah sepuluh tahun pembuangan.", words: 3120 }),
+      mk({ id: "c2", number: 2, title: "Bayangan di Paviliun Timur", status: "done", summary: "Pertemuan pertama dengan Shen Hao; luka lama terbuka.", words: 2870 }),
+      mk({ id: "c3", number: 3, title: "Surat yang Tak Pernah Dikirim", status: "revision", summary: "Mei Lin menemukan surat wasiat sang Guru.", words: 2410 }),
+      mk({ id: "c4", number: 4, title: "Bulan Merah Pertama", status: "draft", summary: "Duel di jembatan batu; rahasia Shen Hao setengah terungkap.", words: 1560 }),
+      mk({ id: "c5", number: 5, title: "Sembilan Naga Terbangun", status: "planned", summary: "Klimaks di altar kuno.", words: 0 }),
     ],
   },
   {
@@ -85,9 +99,9 @@ const seedStories: Story[] = [
     content:
       "The map was wrong, which was impossible, because Ilse had drawn it herself.\n\nShe traced the ink with one finger—Weaver's Lane, the clocktower, the crooked square where the pigeons refused to land—and stopped at a street that should not have been there. A thin line, barely a hair, running between two buildings that in daylight stood shoulder to shoulder.\n\n",
     chapters: [
-      { id: "c6", number: 1, title: "The Thirteenth Hour", status: "done", summary: "Ilse discovers the impossible street.", words: 4020 },
-      { id: "c7", number: 2, title: "Ink That Remembers", status: "done", summary: "The guild's archives hint at earlier cartographers who vanished.", words: 3350 },
-      { id: "c8", number: 3, title: "Between Midnight and One", status: "draft", summary: "Ilse enters the district.", words: 980 },
+      mk({ id: "c6", number: 1, title: "The Thirteenth Hour", status: "done", summary: "Ilse discovers the impossible street.", words: 4020 }),
+      mk({ id: "c7", number: 2, title: "Ink That Remembers", status: "done", summary: "The guild's archives hint at earlier cartographers who vanished.", words: 3350 }),
+      mk({ id: "c8", number: 3, title: "Between Midnight and One", status: "draft", summary: "Ilse enters the district.", words: 980 }),
     ],
   },
   {
@@ -101,11 +115,16 @@ const seedStories: Story[] = [
     content:
       "Hujan selalu datang pukul empat. Begitu juga dia.\n\n",
     chapters: [
-      { id: "c9", number: 1, title: "Pukul Empat", status: "done", summary: "Ritual diam dua orang asing.", words: 2200 },
-      { id: "c10", number: 2, title: "Pengumuman", status: "draft", summary: "Kedai akan tutup akhir bulan.", words: 640 },
+      mk({ id: "c9", number: 1, title: "Pukul Empat", status: "done", summary: "Ritual diam dua orang asing.", words: 2200 }),
+      mk({ id: "c10", number: 2, title: "Pengumuman", status: "draft", summary: "Kedai akan tutup akhir bulan.", words: 640 }),
     ],
   },
 ];
+
+for (const st of seedStories) {
+  const cur = [...st.chapters].reverse().find((c) => c.status !== "planned");
+  if (cur) { cur.content = st.content; cur.words = countWords(st.content) || cur.words; st.activeChapterId = cur.id; }
+}
 
 const seedCharacters: Character[] = [
   { id: "k1", storyId: "s1", name: "Ling Yue", role: "protagonist", diction: "Hemat kata, kalimat pendek, sering diam sebelum menjawab. Tidak pernah memakai kata 'aku' saat marah.", status: "active", hue: 15, bio: "Pendekar buangan, murid ketiga Guru Bai.", x: 120, y: 200 },
@@ -171,6 +190,9 @@ interface StoreValue {
   setActiveStoryId: (id: string) => void;
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
   updateContent: (id: string, content: string) => void;
+  addChapter: (storyId: string, c: { title: string; summary: string; target: number }) => void;
+  updateChapter: (storyId: string, chapterId: string, patch: Partial<Chapter>) => void;
+  openChapter: (storyId: string, chapterId: string) => void;
   characters: Character[];
   addCharacter: (c: Omit<Character, "id" | "storyId" | "hue" | "x" | "y">) => void;
   moveCharacter: (id: string, x: number, y: number) => void;
@@ -188,7 +210,9 @@ interface StoreValue {
   setAuthOpen: (v: boolean) => void;
 }
 
-const Ctx = createContext<StoreValue | null>(null);
+// Keep one context instance across hot reloads so provider and consumers always match.
+const g = globalThis as unknown as { __bmStoreCtx?: React.Context<StoreValue | null> };
+const Ctx = (g.__bmStoreCtx ??= createContext<StoreValue | null>(null));
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
@@ -229,7 +253,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateContent = useCallback((id: string, content: string) => {
-    setStories((prev) => prev.map((s) => (s.id === id ? { ...s, content, updatedAt: new Date().toISOString() } : s)));
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => (s.id === id ? {
+      ...s, content, updatedAt: now,
+      chapters: s.chapters.map((c) => (c.id === s.activeChapterId ? { ...c, content, words: countWords(content), updatedAt: now, status: c.status === "planned" ? "draft" : c.status } : c)),
+    } : s)));
+  }, []);
+
+  const addChapter: StoreValue["addChapter"] = useCallback((storyId, c) => {
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => s.id !== storyId ? s : {
+      ...s, updatedAt: now,
+      chapters: [...s.chapters, { id: uid(), number: s.chapters.length + 1, title: c.title, summary: c.summary, target: c.target, status: "draft", words: 0, content: "", updatedAt: now }],
+    }));
+  }, []);
+
+  const updateChapter: StoreValue["updateChapter"] = useCallback((storyId, chapterId, patch) => {
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => s.id !== storyId ? s : {
+      ...s, chapters: s.chapters.map((c) => (c.id === chapterId ? { ...c, ...patch, updatedAt: now } : c)),
+    }));
+  }, []);
+
+  const openChapter: StoreValue["openChapter"] = useCallback((storyId, chapterId) => {
+    setStories((prev) => prev.map((s) => {
+      if (s.id !== storyId) return s;
+      const ch = s.chapters.find((c) => c.id === chapterId);
+      return ch ? { ...s, activeChapterId: chapterId, content: ch.content } : s;
+    }));
+    setActiveStoryId(storyId);
   }, []);
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
@@ -276,6 +328,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setActiveStoryId,
       addStory,
       updateContent,
+      addChapter,
+      updateChapter,
+      openChapter,
       characters: allCharacters.filter((c) => c.storyId === activeStoryId),
       addCharacter,
       moveCharacter,
@@ -292,7 +347,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
