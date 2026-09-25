@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { dictionaries, type Dict, type Lang } from "./i18n";
 
 export type Theme = "dark" | "light";
-export type ChapterStatus = "done" | "draft" | "planned";
+export type ChapterStatus = "done" | "draft" | "revision" | "planned";
 export type Role = "protagonist" | "antagonist" | "supporting";
 export type CharStatus = "active" | "deceased" | "missing";
 export type RelationType = "conflict" | "alliance" | "secret" | "romance";
@@ -14,6 +14,9 @@ export interface Chapter {
   status: ChapterStatus;
   summary: string;
   words: number;
+  content: string;
+  target: number;
+  updatedAt: string;
 }
 export interface Story {
   id: string;
@@ -24,6 +27,7 @@ export interface Story {
   updatedAt: string;
   chapters: Chapter[];
   content: string;
+  activeChapterId?: string | undefined;
 }
 export interface Character {
   id: string;
@@ -55,6 +59,15 @@ export interface Note {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+const countWords = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+function mk(c: Omit<Chapter, "content" | "target" | "updatedAt">): Chapter {
+  const content = c.words
+    ? `${c.summary}\n\n${c.title}. Kalimat pembuka bab ini masih menggema dari bab sebelumnya—sunyi, penuh firasat, dan menunggu untuk dibaca ulang.\n\nDi sinilah penulis menata ulang ritme, memeriksa dialog, dan memastikan setiap benang cerita tetap terikat pada benang merahnya.`
+    : "";
+  const day = 10 + (c.number % 9);
+  return { ...c, content, target: Math.max(3000, c.words), updatedAt: `2026-09-${day}T10:00:00Z` };
+}
+
 const seedStories: Story[] = [
   {
     id: "s1",
@@ -67,11 +80,11 @@ const seedStories: Story[] = [
     content:
       "Angin dari utara membawa bau besi dan hujan.\n\nLing Yue berdiri di ambang gerbang Lembah Sembilan Naga, jubahnya yang lusuh berkibar seperti bendera yang lupa kepada siapa ia berkibar. Sepuluh tahun. Sepuluh tahun sejak ia dibuang, dan gerbang itu masih setinggi dulu, masih diukir dengan naga yang sama—hanya saja kini matanya tampak lebih lelah.\n\n\"Kau tidak seharusnya kembali,\" suara itu datang dari balik kabut. Tenang. Terlalu tenang.\n\nLing Yue tidak menoleh. Ia tahu suara itu. Ia telah mendengarnya di setiap mimpi buruknya. \"Dan kau tidak seharusnya membunuh Guru, Kakak Seperguruan.\"\n\nHening. Lalu tawa kecil, hampir seperti helaan napas. \"Kau masih memanggilku begitu.\"\n\n",
     chapters: [
-      { id: "c1", number: 1, title: "Gerbang yang Lupa", status: "done", summary: "Ling Yue kembali ke lembah setelah sepuluh tahun pembuangan.", words: 3120 },
-      { id: "c2", number: 2, title: "Bayangan di Paviliun Timur", status: "done", summary: "Pertemuan pertama dengan Shen Hao; luka lama terbuka.", words: 2870 },
-      { id: "c3", number: 3, title: "Surat yang Tak Pernah Dikirim", status: "done", summary: "Mei Lin menemukan surat wasiat sang Guru.", words: 2410 },
-      { id: "c4", number: 4, title: "Bulan Merah Pertama", status: "draft", summary: "Duel di jembatan batu; rahasia Shen Hao setengah terungkap.", words: 1560 },
-      { id: "c5", number: 5, title: "Sembilan Naga Terbangun", status: "planned", summary: "Klimaks di altar kuno.", words: 0 },
+      mk({ id: "c1", number: 1, title: "Gerbang yang Lupa", status: "done", summary: "Ling Yue kembali ke lembah setelah sepuluh tahun pembuangan.", words: 3120 }),
+      mk({ id: "c2", number: 2, title: "Bayangan di Paviliun Timur", status: "done", summary: "Pertemuan pertama dengan Shen Hao; luka lama terbuka.", words: 2870 }),
+      mk({ id: "c3", number: 3, title: "Surat yang Tak Pernah Dikirim", status: "revision", summary: "Mei Lin menemukan surat wasiat sang Guru.", words: 2410 }),
+      mk({ id: "c4", number: 4, title: "Bulan Merah Pertama", status: "draft", summary: "Duel di jembatan batu; rahasia Shen Hao setengah terungkap.", words: 1560 }),
+      mk({ id: "c5", number: 5, title: "Sembilan Naga Terbangun", status: "planned", summary: "Klimaks di altar kuno.", words: 0 }),
     ],
   },
   {
@@ -85,9 +98,9 @@ const seedStories: Story[] = [
     content:
       "The map was wrong, which was impossible, because Ilse had drawn it herself.\n\nShe traced the ink with one finger—Weaver's Lane, the clocktower, the crooked square where the pigeons refused to land—and stopped at a street that should not have been there. A thin line, barely a hair, running between two buildings that in daylight stood shoulder to shoulder.\n\n",
     chapters: [
-      { id: "c6", number: 1, title: "The Thirteenth Hour", status: "done", summary: "Ilse discovers the impossible street.", words: 4020 },
-      { id: "c7", number: 2, title: "Ink That Remembers", status: "done", summary: "The guild's archives hint at earlier cartographers who vanished.", words: 3350 },
-      { id: "c8", number: 3, title: "Between Midnight and One", status: "draft", summary: "Ilse enters the district.", words: 980 },
+      mk({ id: "c6", number: 1, title: "The Thirteenth Hour", status: "done", summary: "Ilse discovers the impossible street.", words: 4020 }),
+      mk({ id: "c7", number: 2, title: "Ink That Remembers", status: "done", summary: "The guild's archives hint at earlier cartographers who vanished.", words: 3350 }),
+      mk({ id: "c8", number: 3, title: "Between Midnight and One", status: "draft", summary: "Ilse enters the district.", words: 980 }),
     ],
   },
   {
@@ -101,8 +114,8 @@ const seedStories: Story[] = [
     content:
       "Hujan selalu datang pukul empat. Begitu juga dia.\n\n",
     chapters: [
-      { id: "c9", number: 1, title: "Pukul Empat", status: "done", summary: "Ritual diam dua orang asing.", words: 2200 },
-      { id: "c10", number: 2, title: "Pengumuman", status: "draft", summary: "Kedai akan tutup akhir bulan.", words: 640 },
+      mk({ id: "c9", number: 1, title: "Pukul Empat", status: "done", summary: "Ritual diam dua orang asing.", words: 2200 }),
+      mk({ id: "c10", number: 2, title: "Pengumuman", status: "draft", summary: "Kedai akan tutup akhir bulan.", words: 640 }),
     ],
   },
 ];
