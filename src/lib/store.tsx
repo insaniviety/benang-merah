@@ -1,3 +1,4 @@
+import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { dictionaries, type Dict, type Lang } from "./i18n";
 
@@ -209,7 +210,9 @@ interface StoreValue {
   setAuthOpen: (v: boolean) => void;
 }
 
-const Ctx = createContext<StoreValue | null>(null);
+// Keep one context instance across hot reloads so provider and consumers always match.
+const g = globalThis as unknown as { __bmStoreCtx?: React.Context<StoreValue | null> };
+const Ctx = (g.__bmStoreCtx ??= createContext<StoreValue | null>(null));
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
