@@ -83,7 +83,7 @@ function Dashboard() {
         <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3 text-sm">
           <Badge variant="outline" className="border-thread/40 text-thread">{activeStory.genre}</Badge>
           <span className="font-display text-base">{activeStory.title}</span>
-          <span className="text-muted-foreground">· {t.chapter} {activeStory.chapters.filter((c) => c.status !== "planned").length || 1}</span>
+          {(() => { const ch = activeStory.chapters.find((c) => c.id === activeStory.activeChapterId); return <span className="text-muted-foreground">· {t.chapter} {ch?.number ?? 1}{ch ? ` — ${ch.title}` : ""}</span>; })()}
           <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             <span className="size-1.5 rounded-full bg-success" /> {t.saved} · {words} {t.words}
           </span>
