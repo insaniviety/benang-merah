@@ -120,6 +120,11 @@ const seedStories: Story[] = [
   },
 ];
 
+for (const st of seedStories) {
+  const cur = [...st.chapters].reverse().find((c) => c.status !== "planned");
+  if (cur) { cur.content = st.content; cur.words = countWords(st.content) || cur.words; st.activeChapterId = cur.id; }
+}
+
 const seedCharacters: Character[] = [
   { id: "k1", storyId: "s1", name: "Ling Yue", role: "protagonist", diction: "Hemat kata, kalimat pendek, sering diam sebelum menjawab. Tidak pernah memakai kata 'aku' saat marah.", status: "active", hue: 15, bio: "Pendekar buangan, murid ketiga Guru Bai.", x: 120, y: 200 },
   { id: "k2", storyId: "s1", name: "Shen Hao", role: "antagonist", diction: "Formal dan puitis, senang metafora tentang air dan bayangan. Selalu tenang, bahkan saat mengancam.", status: "active", hue: 260, bio: "Kakak seperguruan Ling Yue; pewaris sah lembah.", x: 560, y: 120 },
@@ -184,6 +189,9 @@ interface StoreValue {
   setActiveStoryId: (id: string) => void;
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
   updateContent: (id: string, content: string) => void;
+  addChapter: (storyId: string, c: { title: string; summary: string; target: number }) => void;
+  updateChapter: (storyId: string, chapterId: string, patch: Partial<Chapter>) => void;
+  openChapter: (storyId: string, chapterId: string) => void;
   characters: Character[];
   addCharacter: (c: Omit<Character, "id" | "storyId" | "hue" | "x" | "y">) => void;
   moveCharacter: (id: string, x: number, y: number) => void;
@@ -242,7 +250,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateContent = useCallback((id: string, content: string) => {
-    setStories((prev) => prev.map((s) => (s.id === id ? { ...s, content, updatedAt: new Date().toISOString() } : s)));
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => (s.id === id ? {
+      ...s, content, updatedAt: now,
+      chapters: s.chapters.map((c) => (c.id === s.activeChapterId ? { ...c, content, words: countWords(content), updatedAt: now, status: c.status === "planned" ? "draft" : c.status } : c)),
+    } : s)));
+  }, []);
+
+  const addChapter: StoreValue["addChapter"] = useCallback((storyId, c) => {
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => s.id !== storyId ? s : {
+      ...s, updatedAt: now,
+      chapters: [...s.chapters, { id: uid(), number: s.chapters.length + 1, title: c.title, summary: c.summary, target: c.target, status: "draft", words: 0, content: "", updatedAt: now }],
+    }));
+  }, []);
+
+  const updateChapter: StoreValue["updateChapter"] = useCallback((storyId, chapterId, patch) => {
+    const now = new Date().toISOString();
+    setStories((prev) => prev.map((s) => s.id !== storyId ? s : {
+      ...s, chapters: s.chapters.map((c) => (c.id === chapterId ? { ...c, ...patch, updatedAt: now } : c)),
+    }));
+  }, []);
+
+  const openChapter: StoreValue["openChapter"] = useCallback((storyId, chapterId) => {
+    setStories((prev) => prev.map((s) => {
+      if (s.id !== storyId) return s;
+      const ch = s.chapters.find((c) => c.id === chapterId);
+      return ch ? { ...s, activeChapterId: chapterId, content: ch.content } : s;
+    }));
+    setActiveStoryId(storyId);
   }, []);
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
@@ -289,6 +325,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setActiveStoryId,
       addStory,
       updateContent,
+      addChapter,
+      updateChapter,
+      openChapter,
       characters: allCharacters.filter((c) => c.storyId === activeStoryId),
       addCharacter,
       moveCharacter,
@@ -305,7 +344,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
