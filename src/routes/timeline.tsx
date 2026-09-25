@@ -37,9 +37,9 @@ function Timeline() {
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
 
   const meta: Record<ChapterStatus, { label: string; icon: typeof Circle; dot: string; chip: string }> = {
-    done: { label: t.done, icon: CheckCircle2, dot: "bg-success text-success-foreground", chip: "bg-success/20 text-success-foreground border-success/40" },
+    done: { label: t.done, icon: CheckCircle2, dot: "bg-success text-success-foreground", chip: "bg-success/15 text-success border-success/40" },
     draft: { label: t.draft, icon: PenLine, dot: "bg-thread text-primary-foreground", chip: "bg-thread/15 text-thread border-thread/40" },
-    revision: { label: t.revision, icon: RotateCcw, dot: "bg-warning text-warning-foreground", chip: "bg-warning/20 text-warning-foreground border-warning/50" },
+    revision: { label: t.revision, icon: RotateCcw, dot: "bg-warning text-warning-foreground", chip: "bg-warning/15 text-warning border-warning/50" },
     planned: { label: t.planned, icon: Circle, dot: "bg-muted text-muted-foreground", chip: "bg-muted text-muted-foreground border-border" },
   };
   const chapters = [...activeStory.chapters].sort((a, b) => a.number - b.number);
