@@ -187,7 +187,7 @@ function AddChapterDialog({ open, onOpenChange, storyId }: { open: boolean; onOp
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{t.addChapter.replace(/^\+\s*/, "")}</DialogTitle>
-          <DialogDescription>{t.timelineSub}</DialogDescription>
+          <DialogDescription>{t.chapterList}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2"><Label htmlFor="ch-title">{t.chapterTitle}</Label><Input id="ch-title" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus /></div>

@@ -21,6 +21,7 @@ const NAV = [
   { to: "/library", key: "navLibrary", icon: BookOpen },
   { to: "/characters", key: "navCharacters", icon: Users },
   { to: "/canvas", key: "navCanvas", icon: Share2 },
+  { to: "/chapters", key: "navChapters", icon: BookOpen },
   { to: "/timeline", key: "navTimeline", icon: Clock },
   { to: "/capture", key: "navCapture", icon: Zap },
 ] as const;

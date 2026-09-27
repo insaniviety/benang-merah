@@ -15,6 +15,7 @@ import { Route as CaptureRouteImport } from './routes/capture'
 import { Route as ChaptersRouteImport } from './routes/chapters'
 import { Route as CharactersRouteImport } from './routes/characters'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as TimelineRouteImport } from './routes/timeline'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TimelineRoute = TimelineRouteImport.update({
+  id: '/timeline',
+  path: '/timeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
+  '/timeline': typeof TimelineRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
+  '/timeline': typeof TimelineRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,27 @@ export interface FileRoutesById {
   '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
+  '/timeline': typeof TimelineRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/canvas' | '/capture' | '/chapters' | '/characters' | '/library'
+    | '/'
+    | '/canvas'
+    | '/capture'
+    | '/chapters'
+    | '/characters'
+    | '/library'
+    | '/timeline'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/canvas' | '/capture' | '/chapters' | '/characters' | '/library'
+  to:
+    | '/'
+    | '/canvas'
+    | '/capture'
+    | '/chapters'
+    | '/characters'
+    | '/library'
+    | '/timeline'
   id:
     | '__root__'
     | '/'
@@ -86,6 +108,7 @@ export interface FileRouteTypes {
     | '/chapters'
     | '/characters'
     | '/library'
+    | '/timeline'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,6 +118,7 @@ export interface RootRouteChildren {
   ChaptersRoute: typeof ChaptersRoute
   CharactersRoute: typeof CharactersRoute
   LibraryRoute: typeof LibraryRoute
+  TimelineRoute: typeof TimelineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/timeline': {
+      id: '/timeline'
+      path: '/timeline'
+      fullPath: '/timeline'
+      preLoaderRoute: typeof TimelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChaptersRoute: ChaptersRoute,
   CharactersRoute: CharactersRoute,
   LibraryRoute: LibraryRoute,
+  TimelineRoute: TimelineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
