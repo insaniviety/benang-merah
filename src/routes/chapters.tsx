@@ -12,23 +12,23 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/timeline")({
+export const Route = createFileRoute("/chapters")({
   head: () => ({
     meta: [
-      { title: "Timeline & Bab — Benang Merah" },
+      { title: "Bab Naskah — Benang Merah" },
       { name: "description", content: "Kelola urutan bab, status revisi, dan baca ulang setiap bab naskahmu." },
-      { property: "og:title", content: "Timeline & Bab — Benang Merah" },
+      { property: "og:title", content: "Bab Naskah — Benang Merah" },
       { property: "og:description", content: "Rencanakan, tinjau, dan revisi setiap bab dalam satu garis waktu." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Timeline,
+  component: Chapters,
 });
 
 type Filter = "all" | "draft" | "done" | "revision";
 
-function Timeline() {
+function Chapters() {
   const { t, lang, activeStory, updateChapter, openChapter } = useStore();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
@@ -53,7 +53,7 @@ function Timeline() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6 md:p-10">
       <PageHeader
-        title={t.timelineTitle}
+        title={t.chapterList}
         subtitle={`${activeStory.title} · ${chapters.length} ${t.chapters} · ${total.toLocaleString()} ${t.words}`}
         action={<Button className="shadow-glow" onClick={() => setAdding(true)}><Plus /> {t.addChapter.replace(/^\+\s*/, "")}</Button>}
       />

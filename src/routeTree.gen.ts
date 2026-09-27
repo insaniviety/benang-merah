@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as CaptureRouteImport } from './routes/capture'
+import { Route as ChaptersRouteImport } from './routes/chapters'
 import { Route as CharactersRouteImport } from './routes/characters'
 import { Route as LibraryRouteImport } from './routes/library'
-import { Route as TimelineRouteImport } from './routes/timeline'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,6 +31,11 @@ const CaptureRoute = CaptureRouteImport.update({
   path: '/capture',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChaptersRoute = ChaptersRouteImport.update({
+  id: '/chapters',
+  path: '/chapters',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CharactersRoute = CharactersRouteImport.update({
   id: '/characters',
   path: '/characters',
@@ -41,60 +46,55 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TimelineRoute = TimelineRouteImport.update({
-  id: '/timeline',
-  path: '/timeline',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
-  '/timeline': typeof TimelineRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
-  '/timeline': typeof TimelineRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
-  '/timeline': typeof TimelineRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/canvas' | '/capture' | '/characters' | '/library' | '/timeline'
+    '/' | '/canvas' | '/capture' | '/chapters' | '/characters' | '/library'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/canvas' | '/capture' | '/characters' | '/library' | '/timeline'
+  to: '/' | '/canvas' | '/capture' | '/chapters' | '/characters' | '/library'
   id:
     | '__root__'
     | '/'
     | '/canvas'
     | '/capture'
+    | '/chapters'
     | '/characters'
     | '/library'
-    | '/timeline'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CanvasRoute: typeof CanvasRoute
   CaptureRoute: typeof CaptureRoute
+  ChaptersRoute: typeof ChaptersRoute
   CharactersRoute: typeof CharactersRoute
   LibraryRoute: typeof LibraryRoute
-  TimelineRoute: typeof TimelineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -120,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CaptureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chapters': {
+      id: '/chapters'
+      path: '/chapters'
+      fullPath: '/chapters'
+      preLoaderRoute: typeof ChaptersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/characters': {
       id: '/characters'
       path: '/characters'
@@ -134,13 +141,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/timeline': {
-      id: '/timeline'
-      path: '/timeline'
-      fullPath: '/timeline'
-      preLoaderRoute: typeof TimelineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -148,9 +148,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CanvasRoute: CanvasRoute,
   CaptureRoute: CaptureRoute,
+  ChaptersRoute: ChaptersRoute,
   CharactersRoute: CharactersRoute,
   LibraryRoute: LibraryRoute,
-  TimelineRoute: TimelineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
