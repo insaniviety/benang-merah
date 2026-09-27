@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep chapter management on `/chapters` and per-story event timelines on `/timeline`; they are distinct writing workflows.
+- Generate timeline suggestions through a server-only Lovable AI Gateway helper, while drafts remain client-side until the writer saves them locally; this keeps credentials private and prevents silent timeline changes.

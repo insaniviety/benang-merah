@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CanvasRouteImport } from './routes/canvas'
 import { Route as CaptureRouteImport } from './routes/capture'
+import { Route as ChaptersRouteImport } from './routes/chapters'
 import { Route as CharactersRouteImport } from './routes/characters'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as TimelineRouteImport } from './routes/timeline'
@@ -29,6 +30,11 @@ const CanvasRoute = CanvasRouteImport.update({
 const CaptureRoute = CaptureRouteImport.update({
   id: '/capture',
   path: '/capture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChaptersRoute = ChaptersRouteImport.update({
+  id: '/chapters',
+  path: '/chapters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CharactersRoute = CharactersRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
   '/timeline': typeof TimelineRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
   '/timeline': typeof TimelineRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/canvas': typeof CanvasRoute
   '/capture': typeof CaptureRoute
+  '/chapters': typeof ChaptersRoute
   '/characters': typeof CharactersRoute
   '/library': typeof LibraryRoute
   '/timeline': typeof TimelineRoute
@@ -75,14 +84,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/canvas' | '/capture' | '/characters' | '/library' | '/timeline'
+    | '/'
+    | '/canvas'
+    | '/capture'
+    | '/chapters'
+    | '/characters'
+    | '/library'
+    | '/timeline'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/canvas' | '/capture' | '/characters' | '/library' | '/timeline'
+  to:
+    | '/'
+    | '/canvas'
+    | '/capture'
+    | '/chapters'
+    | '/characters'
+    | '/library'
+    | '/timeline'
   id:
     | '__root__'
     | '/'
     | '/canvas'
     | '/capture'
+    | '/chapters'
     | '/characters'
     | '/library'
     | '/timeline'
@@ -92,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CanvasRoute: typeof CanvasRoute
   CaptureRoute: typeof CaptureRoute
+  ChaptersRoute: typeof ChaptersRoute
   CharactersRoute: typeof CharactersRoute
   LibraryRoute: typeof LibraryRoute
   TimelineRoute: typeof TimelineRoute
@@ -118,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/capture'
       fullPath: '/capture'
       preLoaderRoute: typeof CaptureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chapters': {
+      id: '/chapters'
+      path: '/chapters'
+      fullPath: '/chapters'
+      preLoaderRoute: typeof ChaptersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/characters': {
@@ -148,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CanvasRoute: CanvasRoute,
   CaptureRoute: CaptureRoute,
+  ChaptersRoute: ChaptersRoute,
   CharactersRoute: CharactersRoute,
   LibraryRoute: LibraryRoute,
   TimelineRoute: TimelineRoute,
