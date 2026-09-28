@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, UserX, Sparkles, RefreshCw, Check, X, Bot } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Tulis naskah fiksimu dengan Gemini AI Inspector yang memantau plot hole dan konsistensi karakter secara real-time." },
       { property: "og:title", content: "Editor Naskah — Benang Merah" },
       { property: "og:description", content: "Co-writing AI untuk penulis fiksi: editor bersih dengan pemantauan konsistensi cerita." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Dashboard,
@@ -24,6 +26,14 @@ type Alert = { id: string; kind: "plot" | "consistency" | "suggestion"; title: s
 
 function Dashboard() {
   const { t, activeStory, updateContent, characters } = useStore();
+  const [timeline, setTimeline] = useState<{ era: string; event: string; characters: string[] }[]>([]);
+  useEffect(() => {
+    if (!activeStory) { setTimeline([]); return; }
+    try {
+      const stored = JSON.parse(localStorage.getItem(`bm-timeline-${activeStory.id}`) ?? "[]");
+      setTimeline(Array.isArray(stored) ? stored : []);
+    } catch { setTimeline([]); }
+  }, [activeStory?.id]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [previewing, setPreviewing] = useState<Alert | null>(null);
@@ -34,13 +44,14 @@ function Dashboard() {
     const hero = c.find((k) => k.role === "protagonist")?.name ?? "—";
     const villain = c.find((k) => k.role === "antagonist")?.name ?? "—";
     const dead = c.find((k) => k.status === "deceased")?.name;
+    const flashbackExplainsDead = dead && timeline.some((event) => event.era === "past" && event.characters?.includes(dead));
     return [
       { id: "a1", kind: "plot", title: t.plotHole, chapter: 4, body: `${villain} disebut memegang pedang pusaka, tetapi di Bab 2 pedang itu sudah dipatahkan. Bagaimana ia mendapatkannya kembali?` },
-      ...(dead ? [{ id: "a2", kind: "consistency" as const, title: t.consistency, chapter: 3, body: `${dead} berstatus meninggal, namun muncul berbicara langsung tanpa penanda kilas balik.` }] : []),
+      ...(dead && !flashbackExplainsDead ? [{ id: "a2", kind: "consistency" as const, title: t.consistency, chapter: 3, body: `${dead} berstatus meninggal, namun muncul berbicara langsung tanpa penanda kilas balik.` }] : []),
       { id: "a3", kind: "consistency", title: t.consistency, chapter: 2, body: `${hero} memakai kata "aku" saat marah—bertentangan dengan diksi di Character Bible.` },
       { id: "a4", kind: "suggestion", title: t.suggestion, chapter: 4, body: `Perlambat ritme sebelum duel: satu paragraf sensorik (bau hujan, dingin batu jembatan) akan memperkuat ketegangan.` },
     ];
-  }, [activeStory, characters, t]);
+  }, [activeStory, characters, t, timeline]);
 
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
 
@@ -121,6 +132,7 @@ function Dashboard() {
           </Button>
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin">
+          {timeline.length > 0 && <p className="flex items-center gap-2 border-b pb-3 text-xs text-success-foreground"><Check className="size-4" /> {t.timelineReady}</p>}
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">✓ {t.done}</p>
           )}
