@@ -54,7 +54,10 @@ function Timeline() {
   const move = (fromId: string, toId: string) => {
     const from = events.findIndex((e) => e.id === fromId), to = events.findIndex((e) => e.id === toId);
     if (from < 0 || to < 0 || from === to) return;
-    const next = [...events]; const [item] = next.splice(from, 1); next.splice(to, 0, item); change(next);
+    const next = [...events];
+    const item = next[from];
+    if (!item) return;
+    next.splice(from, 1); next.splice(to, 0, item); change(next);
   };
   const handleGenerate = async () => {
     if (loading) return;
@@ -75,7 +78,8 @@ function Timeline() {
   const groups: Event[][] = [];
   events.forEach((event) => {
     const last = groups[groups.length - 1];
-    if (last && last[0].time === event.time && last[0].era === event.era) last.push(event);
+    const first = last?.[0];
+    if (last && first && first.time === event.time && first.era === event.era) last.push(event);
     else groups.push([event]);
   });
   const edit = (event: Event) => { change(events.some((e) => e.id === event.id) ? events.map((e) => e.id === event.id ? event : e) : [...events, event]); setEditing(null); };
@@ -98,14 +102,14 @@ function Timeline() {
       ) : ready && <>
         <div className="flex flex-wrap items-center justify-between gap-4"><div className="flex items-center gap-2 text-sm text-muted-foreground"><GitBranch className="size-4 text-thread" /> {events.length} {t.eventsCount}</div><Button variant="outline" onClick={() => setEditing(blank())}><Plus className="size-4" /> {t.addEvent}</Button></div>
         <ol className="relative ml-3 border-l-2 border-thread/50 pb-8 md:ml-8">
-          {groups.map((group, groupIndex) => <li key={`${group[0].id}`} className="relative mb-10 pl-7 md:pl-12">
+          {groups.map((group, groupIndex) => { const first = group[0]; if (!first) return null; return <li key={first.id} className="relative mb-10 pl-7 md:pl-12">
             <span className="absolute -left-[9px] top-1 size-4 rounded-full border-4 border-background bg-thread ring-1 ring-thread" />
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-thread"><Clock3 className="size-4" /> {group[0].time || t.present} <span className="font-normal text-muted-foreground">· {group[0].era === "past" ? t.pastEvent : t.present}</span></div>
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-thread"><Clock3 className="size-4" /> {first.time || t.present} <span className="font-normal text-muted-foreground">· {first.era === "past" ? t.pastEvent : t.present}</span></div>
             <div className={cn("grid gap-4", group.length > 1 && "lg:grid-cols-2")}>
               {group.map((e) => <article key={e.id} draggable onDragStart={(ev) => { ev.dataTransfer.effectAllowed = "move"; setDragging(e.id); }} onDragEnd={() => setDragging(null)} onDragOver={(ev) => ev.preventDefault()} onDrop={(ev) => { ev.preventDefault(); if (dragging) move(dragging, e.id); setDragging(null); }} className={cn("min-w-0 rounded-md border bg-card p-5 shadow-soft transition-colors", e.era === "past" ? "border-thread/45" : "border-border", dragging === e.id && "opacity-50")}>
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold uppercase text-thread">{group.length > 1 ? `${t.track} ${e.track}` : `${t.eventLabel} ${events.indexOf(e) + 1}`}</span><div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" className="size-8" title={t.moveUp} aria-label={`${t.moveUp}: ${e.event}`} disabled={events.indexOf(e) === 0} onClick={() => move(e.id, events[events.indexOf(e) - 1].id)}><ArrowUp className="size-4" /></Button>
-                  <Button size="icon" variant="ghost" className="size-8" title={t.moveDown} aria-label={`${t.moveDown}: ${e.event}`} disabled={events.indexOf(e) === events.length - 1} onClick={() => move(e.id, events[events.indexOf(e) + 1].id)}><ArrowDown className="size-4" /></Button>
+                  <Button size="icon" variant="ghost" className="size-8" title={t.moveUp} aria-label={`${t.moveUp}: ${e.event}`} disabled={events.indexOf(e) === 0} onClick={() => { const target = events[events.indexOf(e) - 1]; if (target) move(e.id, target.id); }}><ArrowUp className="size-4" /></Button>
+                  <Button size="icon" variant="ghost" className="size-8" title={t.moveDown} aria-label={`${t.moveDown}: ${e.event}`} disabled={events.indexOf(e) === events.length - 1} onClick={() => { const target = events[events.indexOf(e) + 1]; if (target) move(e.id, target.id); }}><ArrowDown className="size-4" /></Button>
                   <Button size="icon" variant="ghost" className="size-8" title={t.edit} aria-label={`${t.edit}: ${e.event}`} onClick={() => setEditing(e)}><Pencil className="size-4" /></Button>
                   <Button size="icon" variant="ghost" className="size-8 text-destructive" title={t.deleteLabel} aria-label={`${t.deleteLabel}: ${e.event}`} onClick={() => setDeleting(e.id)}><Trash2 className="size-4" /></Button>
                 </div></div>
@@ -116,7 +120,7 @@ function Timeline() {
               </article>)}
             </div>
             {groupIndex < groups.length - 1 && <span className="sr-only">→</span>}
-          </li>)}
+          </li>})}
         </ol>
       </>}
       <EventDialog key={editing?.id ?? "closed"} value={editing} names={characters.map((c) => c.name)} onClose={() => setEditing(null)} onSave={edit} />
