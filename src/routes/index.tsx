@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, UserX, Sparkles, RefreshCw, Check, X, Bot } from "lucide-react";
+import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,16 +22,17 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Alert = { id: string; kind: "plot" | "consistency" | "suggestion"; title: string; body: string; chapter: number };
+type Alert = { id: string; kind: "chronology" | "text" | "world"; body: string; source: string; chapterId?: string; paragraphIndex?: number };
+type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
   const { t, activeStory, updateContent, characters } = useStore();
-  const [timeline, setTimeline] = useState<{ era: string; event: string; characters: string[] }[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   useEffect(() => {
     if (!activeStory) { setTimeline([]); return; }
     try {
       const stored = JSON.parse(localStorage.getItem(`bm-timeline-${activeStory.id}`) ?? "[]");
-      setTimeline(Array.isArray(stored) ? stored : []);
+      setTimeline(Array.isArray(stored) ? stored.filter((event) => event && typeof event.time === "string" && typeof event.location === "string" && Array.isArray(event.characters)) : []);
     } catch { setTimeline([]); }
   }, [activeStory?.id]);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -40,17 +41,46 @@ function Dashboard() {
 
   const alerts = useMemo<Alert[]>(() => {
     if (!activeStory) return [];
-    const c = characters;
-    const hero = c.find((k) => k.role === "protagonist")?.name ?? "—";
-    const villain = c.find((k) => k.role === "antagonist")?.name ?? "—";
-    const dead = c.find((k) => k.status === "deceased")?.name;
-    const flashbackExplainsDead = dead && timeline.some((event) => event.era === "past" && event.characters?.includes(dead));
-    return [
-      { id: "a1", kind: "plot", title: t.plotHole, chapter: 4, body: `${villain} disebut memegang pedang pusaka, tetapi di Bab 2 pedang itu sudah dipatahkan. Bagaimana ia mendapatkannya kembali?` },
-      ...(dead && !flashbackExplainsDead ? [{ id: "a2", kind: "consistency" as const, title: t.consistency, chapter: 3, body: `${dead} berstatus meninggal, namun muncul berbicara langsung tanpa penanda kilas balik.` }] : []),
-      { id: "a3", kind: "consistency", title: t.consistency, chapter: 2, body: `${hero} memakai kata "aku" saat marah—bertentangan dengan diksi di Character Bible.` },
-      { id: "a4", kind: "suggestion", title: t.suggestion, chapter: 4, body: `Perlambat ritme sebelum duel: satu paragraf sensorik (bau hujan, dingin batu jembatan) akan memperkuat ketegangan.` },
-    ];
+    const findings: Alert[] = [];
+    const chapterName = (number: number) => `${t.chapter} ${number}`;
+    // Only report contradictions backed by two actual references, never hypothetical sample warnings.
+    timeline.forEach((event, i) => {
+      if (!event.time.trim() || !event.location.trim()) return;
+      timeline.slice(i + 1).forEach((other) => {
+        if (event.time.trim().toLocaleLowerCase() !== other.time.trim().toLocaleLowerCase() || event.era !== other.era || !other.location.trim() || event.location.trim().toLocaleLowerCase() === other.location.trim().toLocaleLowerCase()) return;
+        event.characters.filter((name) => other.characters.includes(name)).forEach((name) => findings.push({
+          id: `time-${event.id}-${other.id}-${name}`, kind: "chronology",
+          body: `${name}: ${event.location} / ${other.location} (${event.time}).`,
+          source: `${t.referenceTimeline}: ${event.event} ↔ ${other.event}`,
+        }));
+      });
+    });
+    const eyePattern = /(mata(?:nya)?\s+(?:berwarna\s+)?|(?:eyes?\s+(?:were|was|are|is)\s+))\b(hitam|cokelat|coklat|biru|hijau|abu-abu|black|brown|blue|green|gray|grey)\b/gi;
+    const eyeMentions = activeStory.chapters.flatMap((chapter) => {
+      const paragraphs = chapter.content.split(/\n\s*\n/);
+      return paragraphs.flatMap((paragraph, paragraphIndex) => characters.flatMap((character) => {
+        if (!paragraph.toLocaleLowerCase().includes(character.name.toLocaleLowerCase())) return [];
+        return [...paragraph.matchAll(eyePattern)].map((match) => ({ chapter, paragraphIndex, character: character.name, color: match[2]?.toLocaleLowerCase() ?? "" }));
+      }));
+    });
+    eyeMentions.forEach((mention, i) => eyeMentions.slice(i + 1).forEach((other) => {
+      if (mention.character !== other.character || mention.color === other.color || mention.chapter.id === other.chapter.id) return;
+      findings.push({ id: `eyes-${mention.chapter.id}-${other.chapter.id}-${mention.character}`, kind: "text",
+        body: `${mention.character}: ${mention.color} / ${other.color}.`,
+        source: `${t.referenceText}: ${chapterName(mention.chapter.number)} ↔ ${chapterName(other.chapter.number)}`,
+        chapterId: other.chapter.id, paragraphIndex: other.paragraphIndex });
+    }));
+    // Explicit character restrictions are checked only when the same paragraph names the character.
+    characters.filter((character) => /tidak pernah memakai kata ['“"]?aku/i.test(character.diction)).forEach((character) => {
+      activeStory.chapters.forEach((chapter) => chapter.content.split(/\n\s*\n/).forEach((paragraph, paragraphIndex) => {
+        if (!paragraph.toLocaleLowerCase().includes(character.name.toLocaleLowerCase()) || !/\b(marah|angry)\b/i.test(paragraph) || !/[“"]?\baku\b/i.test(paragraph)) return;
+        findings.push({ id: `rule-${chapter.id}-${paragraphIndex}-${character.id}`, kind: "world",
+          body: `${character.name}: “aku” muncul dalam adegan marah, bertentangan dengan diksi karakternya.`,
+          source: `${t.referenceBible} ↔ ${chapterName(chapter.number)}`,
+          chapterId: chapter.id, paragraphIndex });
+      }));
+    });
+    return findings;
   }, [activeStory, characters, t, timeline]);
 
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
@@ -59,28 +89,13 @@ function Dashboard() {
   const visible = alerts.filter((a) => !dismissed.includes(a.id));
 
   const paragraphs = activeStory.content.split(/\n\s*\n/);
-  const pickIndex = (a: Alert) => {
-    const n = paragraphs.length;
-    const want = { a1: n - 1, a2: 1, a3: 0, a4: Math.floor(n / 2) }[a.id] ?? 0;
-    return Math.max(0, Math.min(n - 1, want));
-  };
-  const hero = characters.find((k) => k.role === "protagonist")?.name ?? "Ia";
-  const villain = characters.find((k) => k.role === "antagonist")?.name ?? "Sang lawan";
-  const suggestFor = (a: Alert, orig: string) => {
-    switch (a.id) {
-      case "a1": return `${orig}\n\nBilah itu tak lagi utuh seperti dulu—bekas patahan di Bab 2 masih tampak sebagai guratan perak yang disatukan kembali oleh pandai besi di Lembah Abu. ${villain} menggenggamnya dengan hati-hati, seolah tahu pedang yang pernah patah tak akan pernah benar-benar setia.`;
-      case "a2": return `Kenangan itu datang tanpa diundang, seperti kabut yang merayap di antara tiang kedai.\n\n${orig}\n\nLalu suara itu memudar, dan yang tersisa hanya kursi kosong di seberang meja.`;
-      case "a3": return orig.replace(/\baku\b/g, "saya").replace(/\bAku\b/g, "Saya");
-      case "a4": return `Hujan turun tipis, membawa bau tanah basah dan karat. Dinginnya batu jembatan merambat dari telapak kaki ${hero} hingga ke tengkuk; di kejauhan, lonceng kuil berdentang sekali, lalu sunyi.\n\n${orig}`;
-      default: return orig;
-    }
-  };
-  const previewOriginal = previewing ? (paragraphs[pickIndex(previewing)] ?? "").trim() : "";
-  const previewSuggestion = previewing ? suggestFor(previewing, previewOriginal) : "";
+  const previewOriginal = previewing?.chapterId === activeStory.activeChapterId ? (paragraphs[previewing.paragraphIndex ?? 0] ?? "").trim() : "";
+  const previewSuggestion = previewOriginal;
   const insert = (text: string) => {
     if (!previewing) return;
     const next = [...paragraphs];
-    next[pickIndex(previewing)] = text.trim();
+    if (previewing.chapterId !== activeStory.activeChapterId || previewing.paragraphIndex === undefined) return;
+    next[previewing.paragraphIndex] = text.trim();
     updateContent(activeStory.id, next.join("\n\n"));
     setDismissed((d) => [...d, previewing.id]);
     setPreviewing(null);
@@ -131,18 +146,36 @@ function Dashboard() {
             <RefreshCw className={cn("size-4", analyzing && "animate-spin")} />
           </Button>
         </div>
+        <div className="grid gap-2 border-b px-5 py-4 text-xs" aria-label="Sumber acuan pemeriksaan">
+          {([
+            [t.referenceTimeline, timeline.length > 0, Clock3],
+            [t.referenceBible, characters.length > 0, BookUser],
+            [t.referenceText, activeStory.chapters.some((chapter) => chapter.content.trim()), FileText],
+          ] as const).map(([label, active, Icon]) => <div key={label} className="flex min-w-0 items-center gap-2">
+            <span className={cn("size-2 shrink-0 rounded-full", active ? "bg-success" : "bg-muted-foreground")} />
+            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className={cn("min-w-0 flex-1", active ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+            {!active && <span className="shrink-0 text-muted-foreground">{t.referenceMissing}</span>}
+          </div>)}
+        </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin">
-           {timeline.length > 0 && <p className="flex items-center gap-2 border-b pb-3 text-xs text-success"><Check className="size-4" /> {t.timelineReady}</p>}
           {visible.length === 0 && (
-            <p className="py-10 text-center text-sm text-muted-foreground">✓ {t.done}</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
-          {visible.map((a) => <AlertCard key={a.id} a={a} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
+          {(["chronology", "text", "world"] as const).map((kind) => {
+            const group = visible.filter((alert) => alert.kind === kind);
+            if (!group.length) return null;
+            return <section key={kind} className="space-y-3" aria-label={kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : t.alertWorld}>
+              <h3 className="pt-2 text-xs font-semibold uppercase text-muted-foreground">{kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : t.alertWorld} <span className="ml-1">{group.length}</span></h3>
+              {group.map((a) => <AlertCard key={a.id} a={a} canApply={a.chapterId === activeStory.activeChapterId && a.paragraphIndex !== undefined} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
+            </section>;
+          })}
         </div>
       </aside>
       <AiPreviewDialog
         open={!!previewing}
         onOpenChange={(v) => !v && setPreviewing(null)}
-        title={previewing?.title ?? ""}
+         title={previewing ? `${t.alertSource}: ${previewing.source}` : ""}
         original={previewOriginal}
         suggestion={previewSuggestion}
         onInsert={insert}
@@ -151,12 +184,12 @@ function Dashboard() {
   );
 }
 
-function AlertCard({ a, onApply, onDismiss }: { a: Alert; onApply: () => void; onDismiss: () => void }) {
+function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: boolean; onApply: () => void; onDismiss: () => void }) {
   const { t } = useStore();
   const styles = {
-    plot: { icon: AlertTriangle, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
-    consistency: { icon: UserX, ring: "border-warning/50", chip: "bg-warning/20 text-warning-foreground" },
-    suggestion: { icon: Sparkles, ring: "border-info/50", chip: "bg-info/20 text-info-foreground" },
+    chronology: { icon: Clock3, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
+    text: { icon: AlertTriangle, ring: "border-warning/50", chip: "bg-warning/20 text-warning" },
+    world: { icon: UserX, ring: "border-info/50", chip: "bg-info/20 text-info" },
   }[a.kind];
   const Icon = styles.icon;
   return (
@@ -167,12 +200,12 @@ function AlertCard({ a, onApply, onDismiss }: { a: Alert; onApply: () => void; o
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold">{a.title}</p>
-            <span className="shrink-0 text-[11px] text-muted-foreground">{t.chapter} {a.chapter}</span>
+             <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : t.alertWorld}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
+           <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>
           <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>
+             {canApply && <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>}
             <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={onDismiss}><X className="size-3" /> {t.ignore}</Button>
           </div>
         </div>
