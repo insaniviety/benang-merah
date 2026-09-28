@@ -8,7 +8,7 @@ const input = z.object({
 });
 
 export const generateTimeline = createServerFn({ method: "POST" })
-  .inputValidator((data) => input.parse(data))
+  .validator((data) => input.parse(data))
   .handler(async ({ data }) => {
     const { createResponsesCall } = await import("./timeline-responses.server.ts");
     const apiKey = process.env['LOVABLE_API_KEY'];

@@ -18,6 +18,8 @@ export const Route = createFileRoute("/characters")({
       { name: "description", content: "Profil karakter lengkap: peran, diksi khas, dan status setiap tokoh dalam naskahmu." },
       { property: "og:title", content: "Character Bible — Benang Merah" },
       { property: "og:description", content: "Jaga konsistensi karakter dengan Character Bible." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Characters,

@@ -15,6 +15,8 @@ export const Route = createFileRoute("/capture")({
       { name: "description", content: "Catatan cepat untuk ide, dialog, dan potongan adegan sebelum menguap." },
       { property: "og:title", content: "Quick Capture — Benang Merah" },
       { property: "og:description", content: "Tangkap ide ceritamu dalam hitungan detik." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Capture,
