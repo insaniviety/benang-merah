@@ -88,7 +88,7 @@ function Timeline() {
       <div className="flex flex-wrap items-start justify-between gap-5 border-b pb-7">
         <div><p className="mb-2 text-xs font-semibold uppercase text-thread">{activeStory.title}</p><h1 className="font-display text-3xl font-semibold md:text-4xl">{t.timelineTitle}</h1><p className="mt-2 text-sm text-muted-foreground">{t.timelineSub}</p></div>
         {ready && events.length > 0 && <div className="flex flex-wrap items-center gap-3">
-          <span role="status" className={cn("max-w-xs text-sm", saved ? "text-success-foreground" : "text-warning-foreground")}>{saved ? <><span className="inline-block size-2 rounded-full bg-success" /> {t.timelineReady}</> : t.timelineUnsaved}</span>
+          <span role="status" className={cn("max-w-xs text-sm", saved ? "text-success" : "text-warning")}>{saved ? <><span className="inline-block size-2 rounded-full bg-success" /> {t.timelineReady}</> : t.timelineUnsaved}</span>
           <Button onClick={save} disabled={saved}><Save className="size-4" /> {t.saveTimeline}</Button>
         </div>}
       </div>

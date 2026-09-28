@@ -132,7 +132,7 @@ function Dashboard() {
           </Button>
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin">
-          {timeline.length > 0 && <p className="flex items-center gap-2 border-b pb-3 text-xs text-success-foreground"><Check className="size-4" /> {t.timelineReady}</p>}
+           {timeline.length > 0 && <p className="flex items-center gap-2 border-b pb-3 text-xs text-success"><Check className="size-4" /> {t.timelineReady}</p>}
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">✓ {t.done}</p>
           )}
