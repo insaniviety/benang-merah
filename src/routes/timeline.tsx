@@ -33,6 +33,7 @@ function Timeline() {
   const generate = useServerFn(generateTimeline);
   const [events, setEvents] = useState<Event[]>([]);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
@@ -41,6 +42,7 @@ function Timeline() {
   const storyId = activeStory?.id;
   useEffect(() => {
     setReady(false);
+    setDirty(false);
     if (!storyId) { setEvents([]); setSaved(false); setReady(true); return; }
     try {
       const value = JSON.parse(localStorage.getItem(storageKey(storyId)) ?? "[]");
@@ -50,7 +52,7 @@ function Timeline() {
     setReady(true);
   }, [storyId]);
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
-  const change = (next: Event[]) => { setEvents(next); setSaved(false); };
+  const change = (next: Event[]) => { setEvents(next); setSaved(false); setDirty(true); };
   const move = (fromId: string, toId: string) => {
     const from = events.findIndex((e) => e.id === fromId), to = events.findIndex((e) => e.id === toId);
     if (from < 0 || to < 0 || from === to) return;
@@ -73,7 +75,7 @@ function Timeline() {
     } catch (error) { toast.error(error instanceof Error ? error.message : t.timelineGenerateError); }
     finally { setLoading(false); }
   };
-  const save = () => { localStorage.setItem(storageKey(activeStory.id), JSON.stringify(events)); setSaved(true); toast.success(t.timelineSavedToast); };
+  const save = () => { localStorage.setItem(storageKey(activeStory.id), JSON.stringify(events)); setSaved(events.length > 0); setDirty(false); toast.success(t.timelineSavedToast); };
   // Consecutive events with the same time are positioned in parallel tracks.
   const groups: Event[][] = [];
   events.forEach((event) => {
@@ -87,9 +89,9 @@ function Timeline() {
     <div className="mx-auto max-w-6xl space-y-8 px-5 py-8 md:px-10 md:py-12">
       <div className="flex flex-wrap items-start justify-between gap-5 border-b pb-7">
         <div><p className="mb-2 text-xs font-semibold uppercase text-thread">{activeStory.title}</p><h1 className="font-display text-3xl font-semibold md:text-4xl">{t.timelineTitle}</h1><p className="mt-2 text-sm text-muted-foreground">{t.timelineSub}</p></div>
-        {ready && (events.length > 0 || !saved && !!localStorage.getItem(storageKey(activeStory.id))) && <div className="flex flex-wrap items-center gap-3">
+        {ready && (events.length > 0 || dirty) && <div className="flex flex-wrap items-center gap-3">
           <span role="status" className={cn("max-w-xs text-sm", saved ? "text-success" : "text-warning")}>{saved ? <><span className="inline-block size-2 rounded-full bg-success" /> {t.timelineReady}</> : t.timelineUnsaved}</span>
-          <Button onClick={save} disabled={saved}><Save className="size-4" /> {t.saveTimeline}</Button>
+          <Button onClick={save} disabled={!dirty}><Save className="size-4" /> {t.saveTimeline}</Button>
         </div>}
       </div>
       {ready && events.length === 0 ? (
