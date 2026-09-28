@@ -18,7 +18,7 @@ export const Route = createFileRoute("/chapters")({
       { title: "Bab Naskah — Benang Merah" },
       { name: "description", content: "Kelola urutan bab, status revisi, dan baca ulang setiap bab naskahmu." },
       { property: "og:title", content: "Bab Naskah — Benang Merah" },
-      { property: "og:description", content: "Rencanakan, tinjau, dan revisi setiap bab dalam satu garis waktu." },
+      { property: "og:description", content: "Rencanakan, tinjau, dan revisi setiap bab naskah." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

@@ -13,6 +13,8 @@ export const Route = createFileRoute("/library")({
       { name: "description", content: "Kelola semua naskah fiksimu: genre, jumlah bab, dan pembaruan terakhir dalam satu koleksi." },
       { property: "og:title", content: "Koleksi Naskah — Benang Merah" },
       { property: "og:description", content: "Perpustakaan naskah multi-proyek untuk penulis fiksi." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Library,

@@ -1,4 +1,5 @@
 - [x] Separate chapters from Timeline.
 - [x] Add per-story AI timeline generation and a blank starting view.
 - [x] Add parallel tracks, flashbacks, manual editing, ordering, and explicit save.
-- [ ] Connect saved timeline as a reference in the inspector and verify interactions.
+- [x] Connect saved timeline as a reference in the inspector.
+- [ ] Verify interactions.

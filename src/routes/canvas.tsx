@@ -13,6 +13,8 @@ export const Route = createFileRoute("/canvas")({
       { name: "description", content: "Kanvas relasi visual: lihat benang merah konflik, aliansi, rahasia, dan asmara antar karakter." },
       { property: "og:title", content: "Thread Canvas — Benang Merah" },
       { property: "og:description", content: "Peta hubungan karakter interaktif untuk penulis fiksi." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Canvas,
