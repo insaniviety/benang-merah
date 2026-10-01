@@ -22,7 +22,7 @@ export interface Chapter {
 export interface Story {
   id: string;
   title: string;
-  genre: string;
+  genres: string[];
   language: string;
   synopsis: string;
   updatedAt: string;
@@ -73,7 +73,7 @@ const seedStories: Story[] = [
   {
     id: "s1",
     title: "Pedang di Bawah Bulan Merah",
-    genre: "Wuxia",
+    genres: ["Wuxia"],
     language: "Bahasa Indonesia",
     synopsis:
       "Seorang pendekar buangan kembali ke Lembah Sembilan Naga untuk membalas kematian gurunya, hanya untuk menemukan bahwa musuh sejatinya adalah saudara seperguruannya sendiri.",
@@ -91,7 +91,7 @@ const seedStories: Story[] = [
   {
     id: "s2",
     title: "The Cartographer of Lost Hours",
-    genre: "Fantasy",
+    genres: ["Fantasy"],
     language: "English",
     synopsis:
       "In a city where time can be mapped like terrain, a young cartographer discovers a district that exists only between midnight and one.",
@@ -107,7 +107,7 @@ const seedStories: Story[] = [
   {
     id: "s3",
     title: "Hujan di Kedai Kopi Terakhir",
-    genre: "Romance",
+    genres: ["Romance"],
     language: "Bahasa Indonesia",
     synopsis:
       "Dua orang asing yang selalu berteduh di kedai kopi yang sama setiap kali hujan turun, tanpa pernah berbicara—sampai kedai itu diumumkan akan tutup.",
@@ -189,6 +189,7 @@ interface StoreValue {
   activeStory: Story | undefined;
   setActiveStoryId: (id: string) => void;
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
+  updateStory: (id: string, patch: Pick<Story, "title" | "genres" | "language" | "synopsis">) => void;
   updateContent: (id: string, content: string) => void;
   addChapter: (storyId: string, c: { title: string; summary: string; target: number }) => void;
   updateChapter: (storyId: string, chapterId: string, patch: Partial<Chapter>) => void;
@@ -250,6 +251,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const story: Story = { ...s, id: uid(), updatedAt: new Date().toISOString(), chapters: [], content: "" };
     setStories((prev) => [story, ...prev]);
     setActiveStoryId(story.id);
+  }, []);
+
+  const updateStory: StoreValue["updateStory"] = useCallback((id, patch) => {
+    setStories((prev) => prev.map((s) => s.id === id ? { ...s, ...patch, updatedAt: new Date().toISOString() } : s));
   }, []);
 
   const updateContent = useCallback((id: string, content: string) => {
@@ -327,6 +332,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activeStory: stories.find((s) => s.id === activeStoryId),
       setActiveStoryId,
       addStory,
+      updateStory,
       updateContent,
       addChapter,
       updateChapter,
@@ -347,7 +353,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -359,5 +365,5 @@ export function useStore() {
   return v;
 }
 
-export const GENRES = ["Wuxia", "Fantasy", "Romance", "Xianxia", "Mystery", "Sci-Fi", "Horror", "Drama", "Historical"];
+export const GENRES = ["Wuxia", "Xianxia", "Fantasy", "Action", "Hero", "Romance", "Sci-Fi", "Crime", "Mystery", "Thriller", "Horror", "Drama", "Historical", "Comedy", "Adventure", "Slice of Life", "Teen Fiction / Youth", "Urban", "Supernatural"];
 export const STORY_LANGS = ["Bahasa Indonesia", "English", "简体中文", "繁體中文"];

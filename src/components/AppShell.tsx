@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {stories.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 <span className="font-medium">{s.title}</span>
-                <span className="ml-2 text-xs text-muted-foreground">{s.genre}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{s.genres.join(", ")}</span>
               </SelectItem>
             ))}
           </SelectContent>
