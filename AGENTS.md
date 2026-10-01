@@ -11,3 +11,4 @@
 
 - Keep chapter management on `/chapters` and per-story event timelines on `/timeline`; they are distinct writing workflows.
 - Generate timeline suggestions through a server-only Lovable AI Gateway helper, while drafts remain client-side until the writer saves them locally; this keeps credentials private and prevents silent timeline changes.
+- Store manuscript genres as an array and share one form between create and edit; this keeps genre choices consistent across both workflows.

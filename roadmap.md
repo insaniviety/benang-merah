@@ -5,3 +5,5 @@
 - [x] Verify AI generation, chapter separation, manual edits, deletion, and save/reload interactions.
 - [x] Add three reference indicators and evidence-backed alert categories with source labels in the Inspector.
 - [x] Verify Inspector across manuscripts and screen sizes.
+- [ ] Support multiple genres in new and edited manuscripts with the complete genre list.
+- [ ] Show each selected genre on manuscript cards and verify create/edit interactions.
