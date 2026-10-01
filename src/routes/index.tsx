@@ -89,7 +89,7 @@ function Dashboard() {
   const visible = alerts.filter((a) => !dismissed.includes(a.id));
 
   const paragraphs = activeStory.content.split(/\n\s*\n/);
-  const previewOriginal = previewing?.chapterId === activeStory.activeChapterId ? (paragraphs[previewing.paragraphIndex ?? 0] ?? "").trim() : "";
+  const previewOriginal = previewing && previewing.chapterId === activeStory.activeChapterId ? (paragraphs[previewing.paragraphIndex ?? 0] ?? "").trim() : "";
   const previewSuggestion = previewOriginal;
   const insert = (text: string) => {
     if (!previewing) return;
