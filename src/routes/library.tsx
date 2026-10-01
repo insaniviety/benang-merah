@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { BookOpen, Plus, Layers, CalendarDays } from "lucide-react";
+import { useState } from "react";
+import { BookOpen, Plus, Layers, CalendarDays, Pencil } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { NewStoryDialog } from "@/components/NewStoryDialog";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/library")({
 function Library() {
   const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen } = useStore();
   const navigate = useNavigate();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", year: "numeric" });
 
   return (
@@ -44,8 +47,8 @@ function Library() {
               )}
             >
               <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-thread via-thread-soft to-transparent" />
-              <div className="mb-4 flex items-center justify-between">
-                <Badge variant="outline" className="border-thread/40 text-thread">{s.genre}</Badge>
+              <div className="mb-4 flex items-start justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5">{s.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{genre}</Badge>)}</div>
                 <span className="text-xs text-muted-foreground">{s.language}</span>
               </div>
               <h2 className="font-display text-2xl font-semibold leading-snug">{s.title}</h2>
@@ -54,6 +57,7 @@ function Library() {
                 <div className="flex items-center gap-1.5"><Layers className="size-3.5" /> {s.chapters.length} {t.chapters}</div>
                 <div className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> {t.updated} {fmt.format(new Date(s.updatedAt))}</div>
               </dl>
+              <Button variant="ghost" size="sm" className="mt-4 self-start" onClick={() => setEditingId(s.id)}><Pencil className="size-4" /> {t.edit}</Button>
               <Button
                 variant={isActive ? "default" : "secondary"}
                 className="mt-5 w-full"
@@ -65,6 +69,7 @@ function Library() {
           );
         })}
       </div>
+      {editingId && stories.find((story) => story.id === editingId) && <NewStoryDialog key={editingId} story={stories.find((story) => story.id === editingId)} open onOpenChange={(value) => { if (!value) setEditingId(null); }} />}
     </div>
   );
 }
