@@ -7,6 +7,6 @@
 - [x] Verify Inspector across manuscripts and screen sizes.
 - [x] Support multiple genres in new and edited manuscripts with the complete genre list.
 - [x] Show each selected genre on manuscript cards and verify create/edit interactions.
-- [ ] Replace the genre dropdown with an always-visible multi-select chip grid.
-- [ ] Add specific character identities to the form, cards, and relationship details.
-- [ ] Add family relationships to Thread Canvas and verify the complete interaction.
+- [x] Replace the genre dropdown with an always-visible multi-select chip grid.
+- [x] Add specific character identities to the form, cards, and relationship details.
+- [x] Add family relationships to Thread Canvas and verify the complete interaction.

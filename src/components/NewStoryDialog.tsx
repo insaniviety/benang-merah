@@ -51,7 +51,7 @@ export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; o
           </div>
           <fieldset className="grid gap-2">
             <legend className="mb-2 text-sm font-medium">{t.genre}</legend>
-            <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3" aria-label={t.selectGenres}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label={t.selectGenres}>
               {GENRES.map((genre) => {
                 const selected = genres.includes(genre);
                 return (
