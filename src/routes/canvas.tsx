@@ -116,11 +116,11 @@ function Canvas() {
         {connecting && <p className="text-sm text-thread" role="status">{connectFrom ? `${byId[connectFrom]?.name} → ${t.relatedCharacter}` : t.connectHint}</p>}
       </div>
 
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-auto">
         <svg
           ref={svgRef}
           viewBox="0 0 800 560" preserveAspectRatio="xMidYMin meet"
-          className="paper-grain h-full w-full touch-none select-none"
+          className="paper-grain h-full min-h-[560px] w-full min-w-[800px] touch-none select-none"
           onPointerMove={(e) => {
             if (!drag.current) return;
             const p = toSvg(e);
@@ -185,7 +185,7 @@ function Canvas() {
 
         {/* Side panel */}
         <aside className={cn(
-          "absolute inset-y-0 right-0 w-full max-w-sm translate-x-full border-l bg-card/95 backdrop-blur transition-transform duration-300 sm:w-96",
+          "fixed inset-y-16 right-0 z-20 w-full max-w-sm translate-x-full border-l bg-card/95 backdrop-blur transition-transform duration-300 sm:absolute sm:inset-y-0 sm:z-auto sm:w-96",
           selected && "translate-x-0",
         )}>
           <div className="flex h-full flex-col">
