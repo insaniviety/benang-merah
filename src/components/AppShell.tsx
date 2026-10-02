@@ -86,26 +86,26 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur md:px-6">
+      <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center gap-1 border-b bg-background/85 px-2 backdrop-blur sm:gap-3 sm:px-4 md:px-6">
         <button className="rounded-md p-2 hover:bg-accent md:hidden" onClick={() => setMobileOpen((v) => !v)} aria-label="Menu">
           {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
-        <Link to="/" className="flex items-center gap-2.5">
+        <Link to="/" className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <span className="relative flex size-8 items-center justify-center rounded-full bg-thread/15 ring-1 ring-thread/40">
             <PenLine className="size-4 text-thread" />
             <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-thread" />
           </span>
-          <span className="font-display text-xl font-semibold tracking-tight">{t.appName}</span>
+          <span className="truncate font-display text-base font-semibold sm:text-xl">{t.appName}</span>
         </Link>
         <span className="hidden text-xs text-muted-foreground lg:inline">— {t.tagline}</span>
 
-        <div className="ml-auto flex items-center gap-1.5 md:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-0 md:gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+              <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground sm:px-3">
                 <Languages className="size-4" />
                 <span className="hidden sm:inline">{LANGS.find((l) => l.code === lang)?.label}</span>
-                <ChevronDown className="size-3.5" />
+                <ChevronDown className="hidden size-3.5 sm:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -161,8 +161,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" className="shadow-glow" onClick={() => setAuthOpen(true)}>
-              <LogIn className="size-4" /> {t.signInRegister}
+            <Button size="sm" className="shadow-glow max-w-28 px-2 sm:max-w-none sm:px-3" onClick={() => setAuthOpen(true)}>
+              <LogIn className="size-4 shrink-0" /> <span className="truncate">{t.signInRegister}</span>
             </Button>
           )}
         </div>

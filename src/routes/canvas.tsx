@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { X, Swords, Handshake, EyeOff, Heart, Users } from "lucide-react";
+import { X, Swords, Handshake, EyeOff, Heart, Users, Link2, Save, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useStore, type RelationType } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/canvas")({
@@ -31,10 +36,14 @@ const TYPE_META: Record<RelationType, { icon: typeof Swords; dash?: string }> = 
 };
 
 function Canvas() {
-  const { t, characters, relations, moveCharacter } = useStore();
+  const { t, activeStory, characters, relations, moveCharacter, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas } = useStore();
   const [filter, setFilter] = useState<RelationType | "all">("all");
   const [selected, setSelected] = useState<{ kind: "rel" | "node"; id: string } | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id?: string; from: string; to: string; type: RelationType; label: string } | null>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const wasMoved = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const typeLabel: Record<RelationType, string> = { conflict: t.conflict, alliance: t.alliance, secret: t.secret, romance: t.romance, family: t.family };
@@ -52,11 +61,34 @@ function Canvas() {
   const selRel = selected?.kind === "rel" ? relations.find((r) => r.id === selected.id) : undefined;
   const selNode = selected?.kind === "node" ? byId[selected.id] : undefined;
   const nodeRels = selNode ? relations.filter((r) => r.from === selNode.id || r.to === selNode.id) : [];
+  const chooseNode = (id: string) => {
+    if (wasMoved.current) { wasMoved.current = false; return; }
+    if (!connecting) { setSelected({ kind: "node", id }); return; }
+    if (!connectFrom) { setConnectFrom(id); return; }
+    if (connectFrom === id) { setConnectFrom(null); return; }
+    setEditing({ from: connectFrom, to: id, type: "family", label: "" });
+    setConnecting(false);
+    setConnectFrom(null);
+  };
+  const saveThread = () => {
+    if (!editing) return;
+    if (editing.id) updateRelation(editing.id, { type: editing.type, label: editing.label });
+    else addRelation(editing.from, editing.to, editing.type, editing.label);
+    setEditing(null);
+  };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       <div className="space-y-4 border-b px-6 py-5">
-        <PageHeader title={t.canvasTitle} subtitle={t.canvasSub} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <PageHeader title={t.canvasTitle} subtitle={t.canvasSub} />
+          <div className="flex flex-wrap items-center gap-3">
+            <span role="status" className={cn("max-w-xs text-sm", savedCanvas && !canvasDirty ? "text-success" : "text-warning")}>
+              {savedCanvas && !canvasDirty ? <><span className="inline-block size-2 rounded-full bg-success" /> {t.canvasReady}</> : t.canvasUnsaved}
+            </span>
+            <Button onClick={() => { saveCanvas(); toast.success(t.canvasSavedToast); }} disabled={!!savedCanvas && !canvasDirty || !activeStory}><Save className="size-4" /> {t.saveCanvas}</Button>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           {(["all", "alliance", "romance", "conflict", "secret", "family"] as const).map((f) => {
             const Icon = f === "all" ? null : TYPE_META[f].icon;
@@ -77,21 +109,26 @@ function Canvas() {
               </Button>
             );
           })}
+          <Button type="button" size="sm" variant={connecting ? "default" : "outline"} aria-pressed={connecting} onClick={() => { setConnecting((value) => !value); setConnectFrom(null); setSelected(null); }}>
+            <Link2 className="size-4" /> {t.connectNodes}
+          </Button>
         </div>
+        {connecting && <p className="text-sm text-thread" role="status">{connectFrom ? `${byId[connectFrom]?.name} → ${t.relatedCharacter}` : t.connectHint}</p>}
       </div>
 
-      <div className="relative flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-auto">
         <svg
           ref={svgRef}
           viewBox="0 0 800 560" preserveAspectRatio="xMidYMin meet"
-          className="paper-grain h-full w-full touch-none select-none"
+          className="paper-grain h-full min-h-[560px] w-full min-w-[800px] touch-none select-none"
           onPointerMove={(e) => {
             if (!drag.current) return;
             const p = toSvg(e);
+            if (Math.abs(p.x - drag.current.dx - (byId[drag.current.id]?.x ?? 0)) > 2 || Math.abs(p.y - drag.current.dy - (byId[drag.current.id]?.y ?? 0)) > 2) wasMoved.current = true;
             moveCharacter(drag.current.id, p.x - drag.current.dx, p.y - drag.current.dy);
           }}
-          onPointerUp={() => (drag.current = null)}
-          onClick={(e) => { if (e.target === svgRef.current) setSelected(null); }}
+          onPointerUp={() => { drag.current = null; }}
+          onClick={(e) => { if (e.target === svgRef.current) { setSelected(null); if (connecting) setConnectFrom(null); } }}
         >
           <defs>
             <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -104,7 +141,7 @@ function Canvas() {
             const isSel = selRel?.id === r.id || nodeRels.some((n) => n.id === r.id);
             const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
             return (
-              <g key={r.id} className="cursor-pointer" onClick={() => setSelected({ kind: "rel", id: r.id })}>
+              <g key={r.id} role="button" aria-label={`${typeLabel[r.type]}: ${a.name} — ${b.name}`} tabIndex={0} className="cursor-pointer" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected({ kind: "rel", id: r.id }); } }} onClick={(e) => { e.stopPropagation(); setSelected({ kind: "rel", id: r.id }); setConnecting(false); setConnectFrom(null); }}>
                 <path d={d} fill="none" stroke="transparent" strokeWidth={18} />
                 <path
                   d={d} fill="none"
@@ -114,7 +151,7 @@ function Canvas() {
                   strokeLinecap="round"
                   filter={isSel ? "url(#glow)" : undefined}
                 />
-                <g transform={`translate(${(x1 + 2 * mx + x2) / 4} ${(y1 + 2 * my + y2) / 4})`}>
+                <g pointerEvents="all" transform={`translate(${(x1 + 2 * mx + x2) / 4} ${(y1 + 2 * my + y2) / 4})`}>
                   <rect x={-46} y={-11} width={92} height={22} rx={11} className="fill-card stroke-border" />
                   <text textAnchor="middle" dominantBaseline="central" className="fill-foreground text-[10px] font-semibold uppercase tracking-wider">{typeLabel[r.type]}</text>
                 </g>
@@ -126,13 +163,13 @@ function Canvas() {
             return (
               <foreignObject
                 key={c.id} x={c.x} y={c.y} width={NODE_W} height={NODE_H}
-                className="cursor-grab active:cursor-grabbing"
-                onPointerDown={(e) => { const p = toSvg(e); drag.current = { id: c.id, dx: p.x - c.x, dy: p.y - c.y }; (e.target as Element).setPointerCapture?.(e.pointerId); }}
-                onClick={() => setSelected({ kind: "node", id: c.id })}
+                className={connecting ? "cursor-crosshair" : "cursor-grab active:cursor-grabbing"}
+                onPointerDown={(e) => { if (connecting) return; const p = toSvg(e); wasMoved.current = false; drag.current = { id: c.id, dx: p.x - c.x, dy: p.y - c.y }; (e.target as Element).setPointerCapture?.(e.pointerId); }}
+                onClick={(e) => { e.stopPropagation(); chooseNode(c.id); }}
               >
                 <div className={cn(
                   "flex h-full items-center gap-2.5 rounded-xl border bg-card px-3 shadow-soft transition-shadow",
-                  isSel && "ring-2 ring-thread",
+                  (isSel || connectFrom === c.id) && "ring-2 ring-thread",
                   c.status === "deceased" && "opacity-60",
                 )}>
                   <Avatar name={c.name} hue={c.hue} size="sm" />
@@ -148,7 +185,7 @@ function Canvas() {
 
         {/* Side panel */}
         <aside className={cn(
-          "absolute inset-y-0 right-0 w-full max-w-sm translate-x-full border-l bg-card/95 backdrop-blur transition-transform duration-300 sm:w-96",
+          "fixed inset-y-16 right-0 z-20 w-full max-w-sm translate-x-full border-l bg-card/95 backdrop-blur transition-transform duration-300 sm:absolute sm:inset-y-0 sm:z-auto sm:w-96",
           selected && "translate-x-0",
         )}>
           <div className="flex h-full flex-col">
@@ -165,7 +202,10 @@ function Canvas() {
               <Button type="button" size="icon" variant="ghost" className="size-8" aria-label={t.close} onClick={() => setSelected(null)}><X className="size-4" /></Button>
             </div>
             <div className="flex-1 space-y-5 overflow-y-auto p-5 scrollbar-thin">
-              {selRel && <RelationHistory rel={selRel} label={typeLabel[selRel.type]} characters={byId} />}
+              {selRel && <>
+                <RelationHistory rel={selRel} label={typeLabel[selRel.type]} characters={byId} />
+                <Button variant="outline" className="w-full" onClick={() => setEditing({ id: selRel.id, from: selRel.from, to: selRel.to, type: selRel.type, label: selRel.label })}><Pencil className="size-4" /> {t.relationDetails}</Button>
+              </>}
               {selNode && (
                 <>
                   <div className="border-l-2 border-thread pl-3">
@@ -175,11 +215,11 @@ function Canvas() {
                   <p className="text-sm text-muted-foreground">{selNode.bio}</p>
                   <p className="text-xs text-muted-foreground">{nodeRels.length} {t.connections}</p>
                   {nodeRels.map((r) => (
-                    <button key={r.id} onClick={() => setSelected({ kind: "rel", id: r.id })} className="w-full rounded-xl border bg-background p-3 text-left hover:border-thread/50">
+                    <Button key={r.id} variant="outline" onClick={() => setSelected({ kind: "rel", id: r.id })} className="h-auto w-full flex-col items-start gap-0.5 whitespace-normal p-3 text-left">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-thread">{typeLabel[r.type]}</p>
                       <p className="text-sm font-medium">{byId[r.from === selNode.id ? r.to : r.from]?.name}</p>
                       <p className="text-xs text-muted-foreground">{r.label}</p>
-                    </button>
+                    </Button>
                   ))}
                 </>
               )}
@@ -192,6 +232,20 @@ function Canvas() {
           </p>
         )}
       </div>
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="font-display text-xl">{t.relationDetails}</DialogTitle><DialogDescription>{editing ? `${byId[editing.from]?.name} × ${byId[editing.to]?.name}` : ""}</DialogDescription></DialogHeader>
+          {editing && <div className="grid gap-4 py-2">
+            <div className="grid gap-2"><Label>{t.relationKind}</Label><Select value={editing.type} onValueChange={(type) => setEditing((prev) => prev ? { ...prev, type: type as RelationType } : null)}><SelectTrigger aria-label={t.relationKind}><SelectValue /></SelectTrigger><SelectContent>{(["alliance", "romance", "conflict", "secret", "family"] as const).map((kind) => <SelectItem key={kind} value={kind}>{typeLabel[kind]}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid gap-2"><Label htmlFor="thread-note">{t.relationNote}</Label><Input id="thread-note" value={editing.label} onChange={(e) => setEditing((prev) => prev ? { ...prev, label: e.target.value } : null)} placeholder={t.relationNoteExample} /></div>
+          </div>}
+          <DialogFooter>
+            {editing?.id && <Button variant="destructive" className="sm:mr-auto" onClick={() => { if (!editing.id) return; deleteRelation(editing.id); setEditing(null); setSelected(null); }}><Trash2 className="size-4" /> {t.deleteThread}</Button>}
+            <Button variant="outline" onClick={() => setEditing(null)}>{t.cancel}</Button>
+            <Button onClick={saveThread} disabled={!editing?.label.trim()}>{t.saveChanges}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
