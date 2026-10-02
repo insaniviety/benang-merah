@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText } from "lucide-react";
+import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +22,11 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Alert = { id: string; kind: "chronology" | "text" | "world"; body: string; source: string; chapterId?: string; paragraphIndex?: number };
+type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string; paragraphIndex?: number };
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters } = useStore();
+  const { t, activeStory, updateContent, characters, savedCanvas } = useStore();
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   useEffect(() => {
     if (!activeStory) { setTimeline([]); return; }
@@ -80,8 +80,34 @@ function Dashboard() {
           chapterId: chapter.id, paragraphIndex });
       }));
     });
+    // Only explicit negations of a saved relationship trigger a finding.
+    if (savedCanvas) {
+      const savedById = Object.fromEntries(savedCanvas.characters.map((character) => [character.id, character]));
+      const relationshipWords: Record<string, string> = {
+        family: "keluarga|saudara|ayah|ibu|adik|kakak|family|brother|sister|parent",
+        alliance: "sekutu|aliansi|alliance|ally|allies",
+        romance: "kekasih|pasangan|pacar|romance|lover|partner",
+        conflict: "musuh|lawan|enemy|rival",
+        secret: "rahasia|secret",
+      };
+      const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      savedCanvas.relations.forEach((relation) => {
+        const first = savedById[relation.from]?.name, second = savedById[relation.to]?.name;
+        if (!first || !second) return;
+        const words = relationshipWords[relation.type];
+        if (!words) return;
+        const negated = new RegExp(`\\b(?:bukan|tidak|not|never|isn't|aren't)\\s+(?:(?:seorang|a|an|the)\\s+)?(?:${words})\\b`, "i");
+        activeStory.chapters.forEach((chapter) => chapter.content.split(/\n\s*\n/).forEach((paragraph, paragraphIndex) => {
+          if (![first, second].every((name) => new RegExp(escape(name), "i").test(paragraph)) || !negated.test(paragraph)) return;
+          findings.push({ id: `relation-${relation.id}-${chapter.id}-${paragraphIndex}`, kind: "relationship",
+            body: `${first} × ${second}: “${paragraph.trim().slice(0, 120)}${paragraph.trim().length > 120 ? "…" : ""}”`,
+            source: `${t.referenceCanvas}: ${relation.label} ↔ ${chapterName(chapter.number)}`,
+            chapterId: chapter.id, paragraphIndex });
+        }));
+      });
+    }
     return findings;
-  }, [activeStory, characters, t, timeline]);
+  }, [activeStory, characters, savedCanvas, t, timeline]);
 
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
 
@@ -150,6 +176,7 @@ function Dashboard() {
           {([
             [t.referenceTimeline, timeline.length > 0, Clock3],
             [t.referenceBible, characters.length > 0, BookUser],
+            [t.referenceCanvas, !!savedCanvas, Link2],
             [t.referenceText, activeStory.chapters.some((chapter) => chapter.content.trim()), FileText],
           ] as const).map(([label, active, Icon]) => <div key={label} className="flex min-w-0 items-center gap-2">
             <span className={cn("size-2 shrink-0 rounded-full", active ? "bg-success" : "bg-muted-foreground")} />
@@ -162,11 +189,12 @@ function Dashboard() {
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
-          {(["chronology", "text", "world"] as const).map((kind) => {
+          {(["chronology", "text", "world", "relationship"] as const).map((kind) => {
             const group = visible.filter((alert) => alert.kind === kind);
             if (!group.length) return null;
-            return <section key={kind} className="space-y-3" aria-label={kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : t.alertWorld}>
-              <h3 className="pt-2 text-xs font-semibold uppercase text-muted-foreground">{kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : t.alertWorld} <span className="ml-1">{group.length}</span></h3>
+            const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : t.alertRelationship;
+            return <section key={kind} className="space-y-3" aria-label={heading}>
+              <h3 className="pt-2 text-xs font-semibold uppercase text-muted-foreground">{heading} <span className="ml-1">{group.length}</span></h3>
               {group.map((a) => <AlertCard key={a.id} a={a} canApply={a.chapterId === activeStory.activeChapterId && a.paragraphIndex !== undefined} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
             </section>;
           })}
@@ -190,6 +218,7 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
     chronology: { icon: Clock3, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
     text: { icon: AlertTriangle, ring: "border-warning/50", chip: "bg-warning/20 text-warning" },
     world: { icon: UserX, ring: "border-info/50", chip: "bg-info/20 text-info" },
+    relationship: { icon: Link2, ring: "border-thread/50", chip: "bg-thread/20 text-thread" },
   }[a.kind];
   const Icon = styles.icon;
   return (
@@ -200,7 +229,7 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-             <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : t.alertWorld}</Badge>
+             <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : a.kind === "world" ? t.alertWorld : t.alertRelationship}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
            <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>

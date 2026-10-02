@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { useStore, type Character, type CharStatus, type Role } from "@/lib/store";
+import { useStore, type Character, type CharStatus, type Role, type RelationType } from "@/lib/store";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function NewCharacterDialog({ character, open: openProp, onOpenChange }: { character?: Character | undefined; open?: boolean | undefined; onOpenChange?: ((v: boolean) => void) | undefined } = {}) {
-  const { t, addCharacter, updateCharacter } = useStore();
+  const { t, addCharacter, updateCharacter, addRelation, characters } = useStore();
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = (v: boolean) => (onOpenChange ? onOpenChange(v) : setOpenState(v));
@@ -21,12 +21,16 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
   const [identity, setIdentity] = useState("");
   const [diction, setDiction] = useState("");
   const [bio, setBio] = useState("");
+  const [relatedTo, setRelatedTo] = useState("");
+  const [relationType, setRelationType] = useState<RelationType>("family");
+  const [relationNote, setRelationNote] = useState("");
 
   useEffect(() => {
     if (open && character) {
       setName(character.name); setRole(character.role); setStatus(character.status);
       setIdentity(character.identity); setDiction(character.diction); setBio(character.bio);
     }
+    if (open) { setRelatedTo(""); setRelationType("family"); setRelationNote(""); }
   }, [open, character]);
 
   const submit = () => {
@@ -34,9 +38,10 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
     const data = { name: name.trim(), role, status, identity: identity.trim(), diction: diction.trim(), bio: bio.trim() };
     if (character) {
       updateCharacter(character.id, data);
+      if (relatedTo) addRelation(character.id, relatedTo, relationType, relationNote);
       toast.success(t.characterUpdated);
     } else {
-      addCharacter(data);
+      addCharacter(data, relatedTo ? { to: relatedTo, type: relationType, label: relationNote } : undefined);
       toast.success(t.characterAdded);
       setName(""); setIdentity(""); setDiction(""); setBio("");
     }
@@ -50,7 +55,7 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
           <Button className="shadow-glow"><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{isEdit ? t.editCharacter : t.addCharacter.replace(/^\+\s*/, "")}</DialogTitle>
           <DialogDescription>{t.charactersSub}</DialogDescription>
@@ -96,6 +101,25 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
             <Label>{t.bioBackground}</Label>
             <Textarea rows={5} className="min-h-32 resize-y" value={bio} onChange={(e) => setBio(e.target.value)} />
           </div>
+          {characters.some((candidate) => candidate.id !== character?.id) && <div className="grid gap-3 border-t pt-4">
+            <Label>{t.characterRelation}</Label>
+            <Select value={relatedTo || "none"} onValueChange={(value) => setRelatedTo(value === "none" ? "" : value)}>
+              <SelectTrigger aria-label={t.relatedCharacter}><SelectValue placeholder={t.relatedCharacter} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t.noRelation}</SelectItem>
+                {characters.filter((candidate) => candidate.id !== character?.id).map((candidate) => <SelectItem key={candidate.id} value={candidate.id}>{candidate.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {relatedTo && <>
+              <Select value={relationType} onValueChange={(value) => setRelationType(value as RelationType)}>
+                <SelectTrigger aria-label={t.relationKind}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(["family", "alliance", "romance", "conflict", "secret"] as const).map((kind) => <SelectItem key={kind} value={kind}>{t[kind]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input aria-label={t.relationNote} value={relationNote} onChange={(e) => setRelationNote(e.target.value)} placeholder={t.relationNoteExample} />
+            </>}
+          </div>}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>{t.cancel}</Button>

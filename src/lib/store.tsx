@@ -52,6 +52,9 @@ export interface Relation {
   label: string;
   history: { chapter: number; text: string }[];
 }
+export type RelationDraft = Pick<Relation, "type" | "label"> & { to: string };
+export type CanvasSnapshot = { characters: Character[]; relations: Relation[] };
+const canvasKey = (storyId: string) => `bm-canvas-${storyId}`;
 export interface Note {
   id: string;
   text: string;
@@ -200,11 +203,17 @@ interface StoreValue {
   updateChapter: (storyId: string, chapterId: string, patch: Partial<Chapter>) => void;
   openChapter: (storyId: string, chapterId: string) => void;
   characters: Character[];
-  addCharacter: (c: Omit<Character, "id" | "storyId" | "hue" | "x" | "y">) => void;
+  addCharacter: (c: Omit<Character, "id" | "storyId" | "hue" | "x" | "y">, relationship?: RelationDraft) => void;
   moveCharacter: (id: string, x: number, y: number) => void;
   updateCharacter: (id: string, patch: Partial<Character>) => void;
   deleteCharacter: (id: string) => void;
   relations: Relation[];
+  addRelation: (from: string, to: string, type: RelationType, label: string) => void;
+  updateRelation: (id: string, patch: Pick<Relation, "type" | "label">) => void;
+  deleteRelation: (id: string) => void;
+  savedCanvas: CanvasSnapshot | null;
+  canvasDirty: boolean;
+  saveCanvas: () => void;
   notes: Note[];
   addNote: (text: string, tag: string) => void;
   newStoryOpen: boolean;
@@ -227,6 +236,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [activeStoryId, setActiveStoryId] = useState("s1");
   const [allCharacters, setCharacters] = useState<Character[]>(seedCharacters);
   const [allRelations, setRelations] = useState<Relation[]>(seedRelations);
+  const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
+  const [canvasReady, setCanvasReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>(seedNotes);
   const [newStoryOpen, setNewStoryOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -237,6 +248,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const savedLang = localStorage.getItem("bm-lang") as Lang | null;
     if (savedTheme === "light") setTheme("light");
     if (savedLang && savedLang in dictionaries) setLangState(savedLang);
+  }, []);
+
+  useEffect(() => {
+    const restored: Record<string, CanvasSnapshot> = {};
+    for (const story of seedStories) {
+      try {
+        const raw = localStorage.getItem(canvasKey(story.id));
+        if (!raw) continue;
+        const value: unknown = JSON.parse(raw);
+        if (!value || typeof value !== "object" || !("characters" in value) || !("relations" in value)) continue;
+        const snapshot = value as CanvasSnapshot;
+        if (!Array.isArray(snapshot.characters) || !Array.isArray(snapshot.relations)) continue;
+        const validCharacters = snapshot.characters.filter((c) => c && c.storyId === story.id && typeof c.id === "string" && typeof c.name === "string" && typeof c.x === "number" && typeof c.y === "number");
+        const ids = new Set(validCharacters.map((c) => c.id));
+        const validRelations = snapshot.relations.filter((r) => r && r.storyId === story.id && ids.has(r.from) && ids.has(r.to) && typeof r.label === "string" && Array.isArray(r.history) && ["family", "alliance", "romance", "conflict", "secret"].includes(r.type));
+        restored[story.id] = { characters: validCharacters, relations: validRelations };
+      } catch { /* Ignore invalid locally saved maps. */ }
+    }
+    setSavedCanvases(restored);
+    setCharacters((prev) => [...prev.filter((c) => !restored[c.storyId]), ...Object.values(restored).flatMap((snapshot) => snapshot.characters)]);
+    setRelations((prev) => [...prev.filter((r) => !restored[r.storyId]), ...Object.values(restored).flatMap((snapshot) => snapshot.relations)]);
+    setCanvasReady(true);
   }, []);
 
   useEffect(() => {
@@ -295,13 +328,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
-    (c) => {
+    (c, relationship) => {
+      const id = uid();
       setCharacters((prev) => [
         ...prev,
-        { ...c, id: uid(), storyId: activeStoryId, hue: Math.floor(Math.random() * 360), x: 120 + Math.random() * 400, y: 120 + Math.random() * 300 },
+        { ...c, id, storyId: activeStoryId, hue: Math.floor(Math.random() * 360), x: 120 + Math.random() * 400, y: 120 + Math.random() * 300 },
       ]);
+      if (relationship && allCharacters.some((existing) => existing.id === relationship.to && existing.storyId === activeStoryId)) {
+        setRelations((prev) => [...prev, { id: uid(), storyId: activeStoryId, from: id, to: relationship.to, type: relationship.type, label: relationship.label.trim(), history: [] }]);
+      }
     },
-    [activeStoryId],
+    [activeStoryId, allCharacters],
   );
 
   const moveCharacter = useCallback((id: string, x: number, y: number) => {
@@ -315,6 +352,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCharacters((prev) => prev.filter((c) => c.id !== id));
     setRelations((prev) => prev.filter((r) => r.from !== id && r.to !== id));
   }, []);
+
+  const addRelation: StoreValue["addRelation"] = useCallback((from, to, type, label) => {
+    if (from === to || !allCharacters.some((c) => c.id === from && c.storyId === activeStoryId) || !allCharacters.some((c) => c.id === to && c.storyId === activeStoryId)) return;
+    setRelations((prev) => [...prev, { id: uid(), storyId: activeStoryId, from, to, type, label: label.trim(), history: [] }]);
+  }, [allCharacters, activeStoryId]);
+  const updateRelation: StoreValue["updateRelation"] = useCallback((id, patch) => {
+    setRelations((prev) => prev.map((r) => r.id === id ? { ...r, type: patch.type, label: patch.label.trim() } : r));
+  }, []);
+  const deleteRelation = useCallback((id: string) => setRelations((prev) => prev.filter((r) => r.id !== id)), []);
+  const savedCanvas = savedCanvases[activeStoryId] ?? null;
+  const currentCanvas = useMemo(() => ({ characters: allCharacters.filter((c) => c.storyId === activeStoryId), relations: allRelations.filter((r) => r.storyId === activeStoryId) }), [allCharacters, allRelations, activeStoryId]);
+  const canvasDirty = canvasReady && JSON.stringify(currentCanvas) !== JSON.stringify(savedCanvas);
+  const saveCanvas = useCallback(() => {
+    localStorage.setItem(canvasKey(activeStoryId), JSON.stringify(currentCanvas));
+    setSavedCanvases((prev) => ({ ...prev, [activeStoryId]: currentCanvas }));
+  }, [activeStoryId, currentCanvas]);
 
   const addNote = useCallback((text: string, tag: string) => {
     setNotes((prev) => [{ id: uid(), text, tag, createdAt: new Date().toISOString() }, ...prev]);
@@ -348,6 +401,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateCharacter,
       deleteCharacter,
       relations: allRelations.filter((r) => r.storyId === activeStoryId),
+      addRelation,
+      updateRelation,
+      deleteRelation,
+      savedCanvas,
+      canvasDirty,
+      saveCanvas,
       notes,
       addNote,
       newStoryOpen,
@@ -358,7 +417,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

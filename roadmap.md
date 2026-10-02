@@ -10,3 +10,7 @@
 - [x] Replace the genre dropdown with an always-visible multi-select chip grid.
 - [x] Add specific character identities to the form, cards, and relationship details.
 - [x] Add family relationships to Thread Canvas and verify the complete interaction.
+- [ ] Create relationships from the Character Bible form and draw their threads automatically.
+- [ ] Add connect mode and thread editing/deletion on Thread Canvas.
+- [ ] Save per-story canvas snapshots and feed saved relationships to Inspector.
+- [ ] Verify creation, edit, deletion, persistence, and evidence-based relationship findings.
