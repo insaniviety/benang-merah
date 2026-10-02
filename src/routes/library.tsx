@@ -69,7 +69,7 @@ function Library() {
           );
         })}
       </div>
-      {editingId && stories.find((story) => story.id === editingId) && <NewStoryDialog key={editingId} story={stories.find((story) => story.id === editingId)} open onOpenChange={(value) => { if (!value) setEditingId(null); }} />}
+      {(() => { const editingStory = stories.find((story) => story.id === editingId); return editingStory ? <NewStoryDialog key={editingStory.id} story={editingStory} open onOpenChange={(value) => { if (!value) setEditingId(null); }} /> : null; })()}
     </div>
   );
 }
