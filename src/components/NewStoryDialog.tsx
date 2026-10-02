@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, X } from "lucide-react";
 
 export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; open?: boolean; onOpenChange?: (value: boolean) => void } = {}) {
@@ -20,6 +19,7 @@ export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; o
   const [genres, setGenres] = useState<string[]>(story?.genres ?? []);
   const [language, setLanguage] = useState<string>(story?.language ?? "Bahasa Indonesia");
   const [synopsis, setSynopsis] = useState(story?.synopsis ?? "");
+  const [showGenres, setShowGenres] = useState(false);
   const changeOpen = onOpenChange ?? setNewStoryOpen;
   const toggleGenre = (genre: string) => setGenres((current) => current.includes(genre) ? current.filter((item) => item !== genre) : [...current, genre]);
 
@@ -55,20 +55,16 @@ export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; o
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>{t.genre}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" aria-label={t.selectGenres} className="w-full justify-between font-normal">
-                    <span className="truncate">{genres.length ? `${genres.length} ${t.genre}` : t.selectGenres}</span>
-                    <ChevronDown className="size-4 shrink-0 opacity-60" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="max-h-64 w-(--radix-popover-trigger-width) overflow-y-auto p-2">
+              <Button type="button" variant="outline" aria-expanded={showGenres} aria-label={t.selectGenres} className="w-full justify-between font-normal" onClick={() => setShowGenres((value) => !value)}>
+                <span className="truncate">{genres.length ? `${genres.length} ${t.genre}` : t.selectGenres}</span>
+                <ChevronDown className="size-4 shrink-0 opacity-60" />
+              </Button>
+              {showGenres && <div className="max-h-44 overflow-y-auto rounded-md border bg-popover p-2 text-popover-foreground" aria-label={t.selectGenres}>
                   {GENRES.map((g) => <div key={g} className="flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent">
                     <Checkbox id={`genre-${story?.id ?? "new"}-${g}`} checked={genres.includes(g)} onCheckedChange={() => toggleGenre(g)} />
                     <Label htmlFor={`genre-${story?.id ?? "new"}-${g}`} className="min-w-0 flex-1 cursor-pointer font-normal">{g}</Label>
                   </div>)}
-                </PopoverContent>
-              </Popover>
+              </div>}
               {genres.length > 0 && <div className="flex flex-wrap gap-1.5" aria-label={t.genre}>
                 {genres.map((g) => <Badge key={g} variant="secondary" className="gap-1 border border-thread/30 bg-thread/10 text-thread">
                   {g}<Button type="button" variant="ghost" size="icon" className="size-4 hover:bg-thread/20" aria-label={`${t.deleteLabel} ${g}`} onClick={() => toggleGenre(g)}><X className="size-3" /></Button>
