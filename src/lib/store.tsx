@@ -6,7 +6,7 @@ export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
 export type Role = "protagonist" | "antagonist" | "supporting";
 export type CharStatus = "active" | "deceased" | "missing";
-export type RelationType = "conflict" | "alliance" | "secret" | "romance";
+export type RelationType = "conflict" | "alliance" | "secret" | "romance" | "family";
 
 export interface Chapter {
   id: string;
@@ -35,6 +35,7 @@ export interface Character {
   storyId: string;
   name: string;
   role: Role;
+  identity: string;
   diction: string;
   status: CharStatus;
   hue: number;
@@ -127,15 +128,15 @@ for (const st of seedStories) {
 }
 
 const seedCharacters: Character[] = [
-  { id: "k1", storyId: "s1", name: "Ling Yue", role: "protagonist", diction: "Hemat kata, kalimat pendek, sering diam sebelum menjawab. Tidak pernah memakai kata 'aku' saat marah.", status: "active", hue: 15, bio: "Pendekar buangan, murid ketiga Guru Bai.", x: 120, y: 200 },
-  { id: "k2", storyId: "s1", name: "Shen Hao", role: "antagonist", diction: "Formal dan puitis, senang metafora tentang air dan bayangan. Selalu tenang, bahkan saat mengancam.", status: "active", hue: 260, bio: "Kakak seperguruan Ling Yue; pewaris sah lembah.", x: 560, y: 120 },
-  { id: "k3", storyId: "s1", name: "Mei Lin", role: "supporting", diction: "Ceplas-ceplos, humor kering, sering menyela. Memanggil semua orang dengan julukan.", status: "active", hue: 80, bio: "Tabib lembah, penjaga rahasia surat Guru.", x: 340, y: 380 },
-  { id: "k4", storyId: "s1", name: "Guru Bai", role: "supporting", diction: "Berbicara dalam peribahasa; kalimatnya sering diulang murid-muridnya.", status: "deceased", hue: 200, bio: "Pendiri Lembah Sembilan Naga. Tewas di bab prolog.", x: 620, y: 400 },
-  { id: "k5", storyId: "s1", name: "Xiao Feng", role: "supporting", diction: "Lugu, banyak bertanya, gugup di depan Shen Hao.", status: "missing", hue: 320, bio: "Murid termuda yang menghilang malam pembunuhan.", x: 160, y: 470 },
-  { id: "k6", storyId: "s2", name: "Ilse Varen", role: "protagonist", diction: "Precise, slightly pedantic, thinks in measurements.", status: "active", hue: 200, bio: "Junior cartographer of the Guild.", x: 200, y: 220 },
-  { id: "k7", storyId: "s2", name: "The Keeper", role: "antagonist", diction: "Speaks only in questions.", status: "active", hue: 30, bio: "Guardian of the thirteenth hour.", x: 560, y: 260 },
-  { id: "k8", storyId: "s3", name: "Raka", role: "protagonist", diction: "Pendiam, banyak monolog batin.", status: "active", hue: 40, bio: "Arsitek yang baru pindah kota.", x: 200, y: 220 },
-  { id: "k9", storyId: "s3", name: "Nayla", role: "protagonist", diction: "Hangat, senang bercanda dengan barista.", status: "active", hue: 340, bio: "Ilustrator lepas.", x: 540, y: 240 },
+  { id: "k1", storyId: "s1", name: "Ling Yue", role: "protagonist", identity: "Murid ketiga Guru Bai; adik seperguruan Shen Hao", diction: "Hemat kata, kalimat pendek, sering diam sebelum menjawab. Tidak pernah memakai kata 'aku' saat marah.", status: "active", hue: 15, bio: "Pendekar buangan yang kembali ke lembah setelah sepuluh tahun.", x: 120, y: 200 },
+  { id: "k2", storyId: "s1", name: "Shen Hao", role: "antagonist", identity: "Pemimpin Lembah Sembilan Naga; kakak seperguruan Ling Yue", diction: "Formal dan puitis, senang metafora tentang air dan bayangan. Selalu tenang, bahkan saat mengancam.", status: "active", hue: 260, bio: "Pewaris sah lembah yang memikul rahasia kematian sang Guru.", x: 560, y: 120 },
+  { id: "k3", storyId: "s1", name: "Mei Lin", role: "supporting", identity: "Tabib lembah dan penjaga surat wasiat Guru Bai", diction: "Ceplas-ceplos, humor kering, sering menyela. Memanggil semua orang dengan julukan.", status: "active", hue: 80, bio: "Sahabat lama Ling Yue yang mengetahui banyak rahasia lembah.", x: 340, y: 380 },
+  { id: "k4", storyId: "s1", name: "Guru Bai", role: "supporting", identity: "Pendiri lembah; guru sekaligus ayah angkat Ling Yue dan Shen Hao", diction: "Berbicara dalam peribahasa; kalimatnya sering diulang murid-muridnya.", status: "deceased", hue: 200, bio: "Pendiri Lembah Sembilan Naga. Tewas di bab prolog.", x: 620, y: 400 },
+  { id: "k5", storyId: "s1", name: "Xiao Feng", role: "supporting", identity: "Murid termuda Lembah Sembilan Naga", diction: "Lugu, banyak bertanya, gugup di depan Shen Hao.", status: "missing", hue: 320, bio: "Menghilang pada malam pembunuhan Guru Bai.", x: 160, y: 470 },
+  { id: "k6", storyId: "s2", name: "Ilse Varen", role: "protagonist", identity: "Junior cartographer of the Guild", diction: "Precise, slightly pedantic, thinks in measurements.", status: "active", hue: 200, bio: "A gifted mapmaker investigating the impossible district.", x: 200, y: 220 },
+  { id: "k7", storyId: "s2", name: "The Keeper", role: "antagonist", identity: "Guardian of the thirteenth hour", diction: "Speaks only in questions.", status: "active", hue: 30, bio: "An ageless guardian bound to the hidden district.", x: 560, y: 260 },
+  { id: "k8", storyId: "s3", name: "Raka", role: "protagonist", identity: "Arsitek yang baru pindah kota", diction: "Pendiam, banyak monolog batin.", status: "active", hue: 40, bio: "Menemukan rutinitas baru di kedai kopi terakhir.", x: 200, y: 220 },
+  { id: "k9", storyId: "s3", name: "Nayla", role: "protagonist", identity: "Ilustrator lepas dan pelanggan tetap kedai", diction: "Hangat, senang bercanda dengan barista.", status: "active", hue: 340, bio: "Selalu datang bersamaan dengan hujan pukul empat.", x: 540, y: 240 },
 ];
 
 const seedRelations: Relation[] = [
@@ -165,6 +166,10 @@ const seedRelations: Relation[] = [
   ] },
   { id: "r8", storyId: "s3", from: "k8", to: "k9", type: "romance", label: "Dua orang asing", history: [
     { chapter: 1, text: "Berteduh di meja yang sama, tanpa kata." },
+  ] },
+  { id: "r9", storyId: "s1", from: "k4", to: "k2", type: "family", label: "Ayah angkat dan putra", history: [
+    { chapter: 1, text: "Guru Bai membesarkan Shen Hao sebagai putra sekaligus pewaris lembah." },
+    { chapter: 3, text: "Wasiat Guru mengungkap bahwa ia tetap mempercayai Shen Hao hingga akhir." },
   ] },
 ];
 
