@@ -128,7 +128,7 @@ function Canvas() {
             moveCharacter(drag.current.id, p.x - drag.current.dx, p.y - drag.current.dy);
           }}
           onPointerUp={() => { drag.current = null; }}
-          onClick={(e) => { if (e.target === svgRef.current) setSelected(null); }}
+          onClick={(e) => { if (e.target === svgRef.current) { setSelected(null); if (connecting) setConnectFrom(null); } }}
         >
           <defs>
             <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
@@ -141,7 +141,7 @@ function Canvas() {
             const isSel = selRel?.id === r.id || nodeRels.some((n) => n.id === r.id);
             const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
             return (
-              <g key={r.id} role="button" aria-label={`${typeLabel[r.type]}: ${a.name} — ${b.name}`} tabIndex={0} className="cursor-pointer" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected({ kind: "rel", id: r.id }); } }} onClick={() => { setSelected({ kind: "rel", id: r.id }); setConnecting(false); setConnectFrom(null); }}>
+              <g key={r.id} role="button" aria-label={`${typeLabel[r.type]}: ${a.name} — ${b.name}`} tabIndex={0} className="cursor-pointer" onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected({ kind: "rel", id: r.id }); } }} onClick={(e) => { e.stopPropagation(); setSelected({ kind: "rel", id: r.id }); setConnecting(false); setConnectFrom(null); }}>
                 <path d={d} fill="none" stroke="transparent" strokeWidth={18} />
                 <path
                   d={d} fill="none"
@@ -151,7 +151,7 @@ function Canvas() {
                   strokeLinecap="round"
                   filter={isSel ? "url(#glow)" : undefined}
                 />
-                <g transform={`translate(${(x1 + 2 * mx + x2) / 4} ${(y1 + 2 * my + y2) / 4})`}>
+                <g pointerEvents="all" transform={`translate(${(x1 + 2 * mx + x2) / 4} ${(y1 + 2 * my + y2) / 4})`}>
                   <rect x={-46} y={-11} width={92} height={22} rx={11} className="fill-card stroke-border" />
                   <text textAnchor="middle" dominantBaseline="central" className="fill-foreground text-[10px] font-semibold uppercase tracking-wider">{typeLabel[r.type]}</text>
                 </g>
@@ -165,7 +165,7 @@ function Canvas() {
                 key={c.id} x={c.x} y={c.y} width={NODE_W} height={NODE_H}
                 className={connecting ? "cursor-crosshair" : "cursor-grab active:cursor-grabbing"}
                 onPointerDown={(e) => { if (connecting) return; const p = toSvg(e); wasMoved.current = false; drag.current = { id: c.id, dx: p.x - c.x, dy: p.y - c.y }; (e.target as Element).setPointerCapture?.(e.pointerId); }}
-                onClick={() => chooseNode(c.id)}
+                onClick={(e) => { e.stopPropagation(); chooseNode(c.id); }}
               >
                 <div className={cn(
                   "flex h-full items-center gap-2.5 rounded-xl border bg-card px-3 shadow-soft transition-shadow",

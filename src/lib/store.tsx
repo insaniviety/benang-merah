@@ -332,7 +332,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const id = uid();
       setCharacters((prev) => [
         ...prev,
-        { ...c, id, storyId: activeStoryId, hue: Math.floor(Math.random() * 360), x: 120 + Math.random() * 400, y: 120 + Math.random() * 300 },
+        { ...c, id, storyId: activeStoryId, hue: Math.floor(Math.random() * 360), x: 80 + ((allCharacters.filter((existing) => existing.storyId === activeStoryId).length * 155) % 560), y: 100 + (Math.floor(allCharacters.filter((existing) => existing.storyId === activeStoryId).length / 4) * 95) },
       ]);
       if (relationship && allCharacters.some((existing) => existing.id === relationship.to && existing.storyId === activeStoryId)) {
         setRelations((prev) => [...prev, { id: uid(), storyId: activeStoryId, from: id, to: relationship.to, type: relationship.type, label: relationship.label.trim(), history: [] }]);
