@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { X, Swords, Handshake, EyeOff, Heart } from "lucide-react";
+import { X, Swords, Handshake, EyeOff, Heart, Users } from "lucide-react";
 import { useStore, type RelationType } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/canvas")({
   head: () => ({
     meta: [
       { title: "Thread Canvas — Benang Merah" },
-      { name: "description", content: "Kanvas relasi visual: lihat benang merah konflik, aliansi, rahasia, dan asmara antar karakter." },
+      { name: "description", content: "Kanvas relasi visual: lihat benang merah konflik, aliansi, rahasia, asmara, dan keluarga antar karakter." },
       { property: "og:title", content: "Thread Canvas — Benang Merah" },
       { property: "og:description", content: "Peta hubungan karakter interaktif untuk penulis fiksi." },
       { property: "og:type", content: "website" },
@@ -26,6 +27,7 @@ const TYPE_META: Record<RelationType, { icon: typeof Swords; dash?: string }> = 
   alliance: { icon: Handshake },
   secret: { icon: EyeOff, dash: "4 6" },
   romance: { icon: Heart, dash: "1 5" },
+  family: { icon: Users, dash: "8 3" },
 };
 
 function Canvas() {
@@ -35,13 +37,15 @@ function Canvas() {
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const typeLabel: Record<RelationType, string> = { conflict: t.conflict, alliance: t.alliance, secret: t.secret, romance: t.romance };
+  const typeLabel: Record<RelationType, string> = { conflict: t.conflict, alliance: t.alliance, secret: t.secret, romance: t.romance, family: t.family };
   const shown = relations.filter((r) => filter === "all" || r.type === filter);
   const byId = Object.fromEntries(characters.map((c) => [c.id, c]));
 
   const toSvg = (e: React.PointerEvent) => {
-    const svg = svgRef.current!;
-    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM()!.inverse());
+    const svg = svgRef.current;
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !matrix) return new DOMPoint(e.clientX, e.clientY);
+    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(matrix.inverse());
     return pt;
   };
 
@@ -54,20 +58,23 @@ function Canvas() {
       <div className="space-y-4 border-b px-6 py-5">
         <PageHeader title={t.canvasTitle} subtitle={t.canvasSub} />
         <div className="flex flex-wrap gap-2">
-          {(["all", "conflict", "alliance", "secret", "romance"] as const).map((f) => {
+          {(["all", "alliance", "romance", "conflict", "secret", "family"] as const).map((f) => {
             const Icon = f === "all" ? null : TYPE_META[f].icon;
             return (
-              <button
+              <Button
                 key={f}
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setFilter(f)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                  filter === f ? "border-thread bg-thread/15 text-thread" : "hover:bg-accent",
+                  "rounded-full",
+                  filter === f && "border-thread bg-thread/15 text-thread hover:bg-thread/20 hover:text-thread",
                 )}
               >
                 {Icon && <Icon className="size-3.5" />}
                 {f === "all" ? t.all : typeLabel[f]}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -155,12 +162,16 @@ function Canvas() {
                 )}
                 {selNode && <h2 className="mt-1 font-display text-xl font-semibold">{selNode.name}</h2>}
               </div>
-              <button onClick={() => setSelected(null)} className="rounded-md p-1.5 hover:bg-accent"><X className="size-4" /></button>
+              <Button type="button" size="icon" variant="ghost" className="size-8" aria-label={t.close} onClick={() => setSelected(null)}><X className="size-4" /></Button>
             </div>
             <div className="flex-1 space-y-5 overflow-y-auto p-5 scrollbar-thin">
-              {selRel && <RelationHistory rel={selRel} label={typeLabel[selRel.type]} />}
+              {selRel && <RelationHistory rel={selRel} label={typeLabel[selRel.type]} characters={byId} />}
               {selNode && (
                 <>
+                  <div className="border-l-2 border-thread pl-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-thread">{t.characterIdentity}</p>
+                    <p className="mt-1 text-sm font-medium">{selNode.identity || "—"}</p>
+                  </div>
                   <p className="text-sm text-muted-foreground">{selNode.bio}</p>
                   <p className="text-xs text-muted-foreground">{nodeRels.length} {t.connections}</p>
                   {nodeRels.map((r) => (
@@ -185,9 +196,11 @@ function Canvas() {
   );
 }
 
-function RelationHistory({ rel, label }: { rel: ReturnType<typeof useStore>["relations"][number]; label: string }) {
+function RelationHistory({ rel, label, characters }: { rel: ReturnType<typeof useStore>["relations"][number]; label: string; characters: Record<string, ReturnType<typeof useStore>["characters"][number]> }) {
   const { t } = useStore();
   const Icon = TYPE_META[rel.type].icon;
+  const fromCharacter = characters[rel.from];
+  const toCharacter = characters[rel.to];
   return (
     <>
       <div className="flex items-center gap-2 rounded-xl bg-thread/10 p-3">
@@ -195,6 +208,18 @@ function RelationHistory({ rel, label }: { rel: ReturnType<typeof useStore>["rel
         <span className="text-sm font-semibold text-thread">{label}</span>
         <span className="ml-auto text-sm text-muted-foreground">{rel.label}</span>
       </div>
+      {rel.type === "family" && (
+        <div className="space-y-3 border-l-2 border-thread pl-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-thread">{t.familyContext}</p>
+          {[fromCharacter, toCharacter].map((character) => character && (
+            <div key={character.id}>
+              <p className="text-sm font-semibold">{character.name}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{character.identity || "—"}</p>
+            </div>
+          ))}
+          <p className="text-sm font-medium">{rel.label}</p>
+        </div>
+      )}
       <ol className="relative ml-2 space-y-5 border-l border-thread/40 pl-5">
         {rel.history.map((h, i) => (
           <li key={i} className="relative">

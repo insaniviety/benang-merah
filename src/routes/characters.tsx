@@ -66,7 +66,11 @@ function Characters() {
                 </Button>
               </div>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">{c.bio}</p>
+            <div className="mt-4 border-l-2 border-thread pl-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-thread">{t.characterIdentity}</p>
+              <p className="mt-0.5 text-sm font-medium">{c.identity || "—"}</p>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{c.bio}</p>
             <div className="mt-4 rounded-xl bg-muted/60 p-3">
               <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <Quote className="size-3" /> {t.diction}

@@ -18,26 +18,27 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
   const [name, setName] = useState("");
   const [role, setRole] = useState<Role>("supporting");
   const [status, setStatus] = useState<CharStatus>("active");
+  const [identity, setIdentity] = useState("");
   const [diction, setDiction] = useState("");
   const [bio, setBio] = useState("");
 
   useEffect(() => {
     if (open && character) {
       setName(character.name); setRole(character.role); setStatus(character.status);
-      setDiction(character.diction); setBio(character.bio);
+      setIdentity(character.identity); setDiction(character.diction); setBio(character.bio);
     }
   }, [open, character]);
 
   const submit = () => {
     if (!name.trim()) return;
-    const data = { name: name.trim(), role, status, diction: diction.trim(), bio: bio.trim() };
+    const data = { name: name.trim(), role, status, identity: identity.trim(), diction: diction.trim(), bio: bio.trim() };
     if (character) {
       updateCharacter(character.id, data);
       toast.success(t.characterUpdated);
     } else {
       addCharacter(data);
       toast.success(t.characterAdded);
-      setName(""); setDiction(""); setBio("");
+      setName(""); setIdentity(""); setDiction(""); setBio("");
     }
     setOpen(false);
   };
@@ -84,12 +85,16 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
             </div>
           </div>
           <div className="grid gap-2">
+            <Label>{t.characterIdentity}</Label>
+            <Input value={identity} onChange={(e) => setIdentity(e.target.value)} placeholder={t.characterIdentityPlaceholder} />
+          </div>
+          <div className="grid gap-2">
             <Label>{t.diction}</Label>
             <Textarea rows={3} value={diction} onChange={(e) => setDiction(e.target.value)} />
           </div>
           <div className="grid gap-2">
-            <Label>Bio</Label>
-            <Textarea rows={2} value={bio} onChange={(e) => setBio(e.target.value)} />
+            <Label>{t.bioBackground}</Label>
+            <Textarea rows={5} className="min-h-32 resize-y" value={bio} onChange={(e) => setBio(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
