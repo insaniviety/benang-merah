@@ -53,7 +53,7 @@ function Chapters() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6 md:p-10">
       <PageHeader
-        title={t.chapterList}
+        title={t.navChapters}
         subtitle={`${activeStory.title} · ${chapters.length} ${t.chapters} · ${total.toLocaleString()} ${t.words}`}
         action={<Button className="shadow-glow" onClick={() => setAdding(true)}><Plus /> {t.addChapter.replace(/^\+\s*/, "")}</Button>}
       />

@@ -142,7 +142,8 @@ function Dashboard() {
         </div>
         <div className="paper-grain flex-1 overflow-y-auto scrollbar-thin">
           <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
-            <h1 className="mb-8 font-display text-4xl font-medium leading-tight md:text-5xl">{activeStory.title}</h1>
+            <h1 className="font-display text-3xl font-semibold md:text-4xl">{t.navDashboard}</h1>
+            <h2 className="mb-8 mt-6 font-display text-2xl font-medium leading-tight md:text-3xl">{activeStory.title}</h2>
             <textarea
               value={activeStory.content}
               onChange={(e) => updateContent(activeStory.id, e.target.value)}
