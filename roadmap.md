@@ -14,3 +14,4 @@
 - [x] Add connect mode and thread editing/deletion on Thread Canvas.
 - [x] Save per-story canvas snapshots and feed saved relationships to Inspector.
 - [x] Verify creation, edit, deletion, persistence, and evidence-based relationship findings.
+- [x] Update Indonesian sidebar labels and matching page headings without changing other languages.
