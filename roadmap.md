@@ -13,4 +13,4 @@
 - [x] Create relationships from the Character Bible form and draw their threads automatically.
 - [x] Add connect mode and thread editing/deletion on Thread Canvas.
 - [x] Save per-story canvas snapshots and feed saved relationships to Inspector.
-- [ ] Verify creation, edit, deletion, persistence, and evidence-based relationship findings.
+- [x] Verify creation, edit, deletion, persistence, and evidence-based relationship findings.
