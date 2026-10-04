@@ -50,7 +50,7 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {!isEdit && (
+      {!isEdit && openProp === undefined && (
         <DialogTrigger asChild>
           <Button className="shadow-glow"><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
         </DialogTrigger>
