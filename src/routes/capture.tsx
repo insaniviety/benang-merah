@@ -22,17 +22,23 @@ export const Route = createFileRoute("/capture")({
   component: Capture,
 });
 
-const TAGS = ["Ide", "Dialog", "Worldbuilding", "Plot"];
+const TAGS = [
+  { value: "idea", defaultLabel: "Ide", englishLabel: "Idea" },
+  { value: "dialogue", defaultLabel: "Dialog", englishLabel: "Dialogue" },
+  { value: "worldbuilding", defaultLabel: "Worldbuilding", englishLabel: "Worldbuilding" },
+  { value: "plot", defaultLabel: "Plot", englishLabel: "Plot" },
+] as const;
 
 function Capture() {
   const { t, lang, notes, addNote } = useStore();
   const [text, setText] = useState("");
-  const [tag, setTag] = useState<string>("Ide");
+  const [tag, setTag] = useState<(typeof TAGS)[number]["value"]>("idea");
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   const submit = () => {
     if (!text.trim()) return;
-    addNote(text.trim(), tag);
+    const selectedTag = TAGS.find((item) => item.value === tag);
+    addNote(text.trim(), lang === "en" ? selectedTag?.englishLabel ?? tag : selectedTag?.defaultLabel ?? tag);
     toast.success(t.noteAdded);
     setText("");
   };
@@ -50,12 +56,12 @@ function Capture() {
           onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit(); }}
         />
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
-          {TAGS.map((tg) => (
+          {TAGS.map((item) => (
             <button
-              key={tg} onClick={() => setTag(tg)}
-              className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", tag === tg ? "border-thread bg-thread/15 text-thread" : "hover:bg-accent")}
+              key={item.value} onClick={() => setTag(item.value)}
+              className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", tag === item.value ? "border-thread bg-thread/15 text-thread" : "hover:bg-accent")}
             >
-              {tg}
+              {lang === "en" ? item.englishLabel : item.defaultLabel}
             </button>
           ))}
           <Button className="ml-auto" onClick={submit} disabled={!text.trim()}><Zap /> {t.captureAdd}</Button>
