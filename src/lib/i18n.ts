@@ -137,7 +137,7 @@ const id = {
   timelineEmpty: "Belum ada alur waktu yang dibuat.",
   generateTimeline: "⚡ Susun Alur Waktu dengan AI",
   addEvent: "+ Tambah Kejadian Manual",
-  saveTimeline: "Simpan Timeline",
+  saveTimeline: "Simpan Alur Waktu",
   timelineReady: "Alur Waktu Tersimpan - Siap digunakan sebagai Acuan Plot Hole AI",
   timelineUnsaved: "Perubahan belum disimpan",
   timelineGenerating: "Sedang membuat timeline...",
