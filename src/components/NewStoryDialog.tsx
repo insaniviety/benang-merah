@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check } from "lucide-react";
+import { getGenreLabel } from "@/lib/i18n";
 
 export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; open?: boolean; onOpenChange?: (value: boolean) => void } = {}) {
-  const { t, newStoryOpen, setNewStoryOpen, addStory, updateStory } = useStore();
+  const { t, lang, newStoryOpen, setNewStoryOpen, addStory, updateStory } = useStore();
   const navigate = useNavigate();
   const [title, setTitle] = useState(story?.title ?? "");
   const [genres, setGenres] = useState<string[]>(story?.genres ?? []);
@@ -64,7 +65,7 @@ export function NewStoryDialog({ story, open, onOpenChange }: { story?: Story; o
                     onClick={() => toggleGenre(genre)}
                   >
                     {selected && <Check className="size-3.5 shrink-0" />}
-                    <span>{genre}</span>
+                    <span>{getGenreLabel(genre, lang)}</span>
                   </Button>
                 );
               })}
