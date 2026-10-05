@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getGenreLabel } from "@/lib/i18n";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -48,7 +49,7 @@ function Library() {
             >
               <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-thread via-thread-soft to-transparent" />
               <div className="mb-4 flex items-start justify-between gap-2">
-                <div className="flex flex-wrap gap-1.5">{s.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{genre}</Badge>)}</div>
+                <div className="flex flex-wrap gap-1.5">{s.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{getGenreLabel(genre, lang)}</Badge>)}</div>
                 <span className="text-xs text-muted-foreground">{s.language}</span>
               </div>
               <h2 className="font-display text-2xl font-semibold leading-snug">{s.title}</h2>
