@@ -29,6 +29,22 @@ const TAGS = [
   { value: "plot", labels: { id: "Plot", en: "Plot", "zh-CN": "情节", "zh-TW": "情節" } },
 ] as const;
 
+type CaptureTag = (typeof TAGS)[number]["value"];
+
+const LEGACY_TAGS: Record<string, CaptureTag> = {
+  Idea: "idea",
+  Ide: "idea",
+  Dialog: "dialogue",
+  Dialogue: "dialogue",
+  Worldbuilding: "worldbuilding",
+  Plot: "plot",
+};
+
+function getTagLabel(tag: string, lang: keyof (typeof TAGS)[number]["labels"]) {
+  const value = LEGACY_TAGS[tag] ?? tag;
+  return TAGS.find((item) => item.value === value)?.labels[lang] ?? tag;
+}
+
 function Capture() {
   const { t, lang, notes, addNote } = useStore();
   const [text, setText] = useState("");
@@ -37,8 +53,7 @@ function Capture() {
 
   const submit = () => {
     if (!text.trim()) return;
-    const selectedTag = TAGS.find((item) => item.value === tag);
-    addNote(text.trim(), selectedTag?.labels[lang] ?? tag);
+    addNote(text.trim(), tag);
     toast.success(t.noteAdded);
     setText("");
   };
@@ -71,7 +86,7 @@ function Capture() {
         {notes.map((n) => (
           <li key={n.id} className="rounded-xl border bg-card/60 p-4">
             <div className="mb-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="rounded-full bg-thread/15 px-2 py-0.5 font-semibold text-thread">{n.tag}</span>
+              <span className="rounded-full bg-thread/15 px-2 py-0.5 font-semibold text-thread">{getTagLabel(n.tag, lang)}</span>
               {fmt.format(new Date(n.createdAt))}
             </div>
             <p className="font-prose leading-relaxed">{n.text}</p>
