@@ -17,3 +17,4 @@
 - [x] Update Indonesian sidebar labels and matching page headings without changing other languages.
 - [x] Align Indonesian canvas save/status and timeline empty/generate/status text with the new terminology.
 - [x] Align English navigation, library heading, Character Bible action placement, and Quick Capture labels.
+- [x] Localize Simplified and Traditional Chinese navigation, capture tags, and manuscript genres.

@@ -23,10 +23,10 @@ export const Route = createFileRoute("/capture")({
 });
 
 const TAGS = [
-  { value: "idea", defaultLabel: "Ide", englishLabel: "Idea" },
-  { value: "dialogue", defaultLabel: "Dialog", englishLabel: "Dialogue" },
-  { value: "worldbuilding", defaultLabel: "Worldbuilding", englishLabel: "Worldbuilding" },
-  { value: "plot", defaultLabel: "Plot", englishLabel: "Plot" },
+  { value: "idea", labels: { id: "Ide", en: "Idea", "zh-CN": "灵感", "zh-TW": "靈感" } },
+  { value: "dialogue", labels: { id: "Dialog", en: "Dialogue", "zh-CN": "对话", "zh-TW": "對話" } },
+  { value: "worldbuilding", labels: { id: "Worldbuilding", en: "Worldbuilding", "zh-CN": "世界观设定", "zh-TW": "世界觀設定" } },
+  { value: "plot", labels: { id: "Plot", en: "Plot", "zh-CN": "情节", "zh-TW": "情節" } },
 ] as const;
 
 function Capture() {
@@ -38,7 +38,7 @@ function Capture() {
   const submit = () => {
     if (!text.trim()) return;
     const selectedTag = TAGS.find((item) => item.value === tag);
-    addNote(text.trim(), lang === "en" ? selectedTag?.englishLabel ?? tag : selectedTag?.defaultLabel ?? tag);
+    addNote(text.trim(), selectedTag?.labels[lang] ?? tag);
     toast.success(t.noteAdded);
     setText("");
   };
@@ -61,7 +61,7 @@ function Capture() {
               key={item.value} onClick={() => setTag(item.value)}
               className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", tag === item.value ? "border-thread bg-thread/15 text-thread" : "hover:bg-accent")}
             >
-              {lang === "en" ? item.englishLabel : item.defaultLabel}
+              {item.labels[lang]}
             </button>
           ))}
           <Button className="ml-auto" onClick={submit} disabled={!text.trim()}><Zap /> {t.captureAdd}</Button>
