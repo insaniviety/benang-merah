@@ -1,6 +1,7 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { dictionaries, type Dict, type Lang } from "./i18n";
+import { readLocalData, writeLocalData, makeBackup, localDataSchema, timelineEventSchema, type LocalData, type TimelineEvent } from "./local-data";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -214,6 +215,12 @@ interface StoreValue {
   savedCanvas: CanvasSnapshot | null;
   canvasDirty: boolean;
   saveCanvas: () => void;
+  timelines: LocalData["timelines"];
+  updateTimeline: (id: string, events: TimelineEvent[]) => void;
+  saveTimeline: (id: string) => void;
+  storageStatus: "loading" | "saving" | "saved" | "error";
+  exportBackup: () => Promise<string>;
+  importBackup: (data: LocalData) => Promise<void>;
   notes: Note[];
   addNote: (text: string, tag: string) => void;
   newStoryOpen: boolean;
@@ -242,45 +249,102 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [newStoryOpen, setNewStoryOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("bm-theme") as Theme | null;
-    const savedLang = localStorage.getItem("bm-lang") as Lang | null;
-    if (savedTheme === "light") setTheme("light");
-    if (savedLang && savedLang in dictionaries) setLangState(savedLang);
+  const [timelines, setTimelines] = useState<LocalData["timelines"]>({});
+  const [storageStatus, setStorageStatus] = useState<StoreValue["storageStatus"]>("loading");
+  const [hydrated, setHydrated] = useState(false);
+  const revision = useRef(0);
+  const applyData = useCallback((data: LocalData) => {
+    setStories(data.stories); setActiveStoryId(data.activeStoryId);
+    setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
+    setTimelines(data.timelines); setNotes(data.notes); setUser(data.user); setTheme(data.theme); setLangState(data.lang);
   }, []);
 
   useEffect(() => {
-    const restored: Record<string, CanvasSnapshot> = {};
-    for (const story of seedStories) {
+    let mounted = true;
+    const restore = async () => {
       try {
-        const raw = localStorage.getItem(canvasKey(story.id));
-        if (!raw) continue;
-        const value: unknown = JSON.parse(raw);
-        if (!value || typeof value !== "object" || !("characters" in value) || !("relations" in value)) continue;
-        const snapshot = value as CanvasSnapshot;
-        if (!Array.isArray(snapshot.characters) || !Array.isArray(snapshot.relations)) continue;
-        const validCharacters = snapshot.characters.filter((c) => c && c.storyId === story.id && typeof c.id === "string" && typeof c.name === "string" && typeof c.x === "number" && typeof c.y === "number");
-        const ids = new Set(validCharacters.map((c) => c.id));
-        const validRelations = snapshot.relations.filter((r) => r && r.storyId === story.id && ids.has(r.from) && ids.has(r.to) && typeof r.label === "string" && Array.isArray(r.history) && ["family", "alliance", "romance", "conflict", "secret"].includes(r.type));
-        restored[story.id] = { characters: validCharacters, relations: validRelations };
-      } catch { /* Ignore invalid locally saved maps. */ }
-    }
-    setSavedCanvases(restored);
-    setCharacters((prev) => [...prev.filter((c) => !restored[c.storyId]), ...Object.values(restored).flatMap((snapshot) => snapshot.characters)]);
-    setRelations((prev) => [...prev.filter((r) => !restored[r.storyId]), ...Object.values(restored).flatMap((snapshot) => snapshot.relations)]);
-    setCanvasReady(true);
-  }, []);
+        let data = await readLocalData();
+        if (!data) {
+          const legacyCanvases: LocalData["savedCanvases"] = {};
+          const legacyTimelines: LocalData["timelines"] = {};
+          for (const story of seedStories) {
+            try {
+              const raw = localStorage.getItem(canvasKey(story.id));
+              if (raw) {
+                const parsed = localDataSchema.shape.savedCanvases.safeParse({ [story.id]: JSON.parse(raw) });
+                if (parsed.success) Object.assign(legacyCanvases, parsed.data);
+              }
+            } catch { /* Leave invalid legacy records untouched. */ }
+            try {
+              const raw = localStorage.getItem(`bm-timeline-${story.id}`);
+              if (raw) {
+                const parsed = timelineEventSchema.array().safeParse(JSON.parse(raw));
+                if (parsed.success) legacyTimelines[story.id] = { draft: parsed.data, saved: parsed.data };
+              }
+            } catch { /* Leave invalid legacy records untouched. */ }
+          }
+          const oldLang = localStorage.getItem("bm-lang");
+          const oldUser = localStorage.getItem("bm-auth");
+          let profile: AuthUser | null = null;
+          try { if (oldUser) profile = localDataSchema.shape.user.parse(JSON.parse(oldUser)); } catch { /* Invalid profile. */ }
+          data = {
+            stories: seedStories, activeStoryId: "s1", notes: seedNotes, user: profile,
+            characters: [...seedCharacters.filter((c) => !legacyCanvases[c.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.characters)],
+            relations: [...seedRelations.filter((r) => !legacyCanvases[r.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.relations)],
+            savedCanvases: legacyCanvases, timelines: legacyTimelines,
+            theme: localStorage.getItem("bm-theme") === "light" ? "light" : "dark",
+            lang: oldLang && oldLang in dictionaries ? oldLang as Lang : "id",
+          };
+          await writeLocalData(data);
+        }
+        if (mounted) { applyData(data); setCanvasReady(true); setHydrated(true); setStorageStatus("saved"); }
+        navigator.storage?.persist?.().catch(() => undefined);
+      } catch { if (mounted) setStorageStatus("error"); }
+    };
+    void restore();
+    return () => { mounted = false; };
+  }, [applyData]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("bm-theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
     document.documentElement.lang = lang;
-    localStorage.setItem("bm-lang", lang);
-  }, [lang]);
+    if (hydrated) {
+      localStorage.setItem("bm-theme", theme);
+      localStorage.setItem("bm-lang", lang);
+    }
+  }, [theme, lang, hydrated]);
+
+  const data = useMemo<LocalData>(() => ({
+    stories, activeStoryId, characters: allCharacters, relations: allRelations,
+    savedCanvases, timelines, notes, user, theme, lang,
+  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang]);
+  useEffect(() => {
+    if (!hydrated) return;
+    const version = ++revision.current;
+    setStorageStatus("saving");
+    void writeLocalData(data).then(() => {
+      if (revision.current === version) setStorageStatus("saved");
+    }).catch(() => { if (revision.current === version) setStorageStatus("error"); });
+  }, [data, hydrated]);
+  const exportBackup = useCallback(async () => {
+    await writeLocalData(data);
+    return makeBackup(data);
+  }, [data]);
+  const importBackup = useCallback(async (next: LocalData) => {
+    ++revision.current;
+    await writeLocalData(next);
+    applyData(next);
+    setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
+  }, [applyData]);
+  const updateTimeline = useCallback((id: string, draft: TimelineEvent[]) => {
+    setTimelines((prev) => ({ ...prev, [id]: { draft, saved: prev[id]?.saved ?? null } }));
+  }, []);
+  const saveTimeline = useCallback((id: string) => {
+    setTimelines((prev) => {
+      const current = prev[id];
+      return current ? { ...prev, [id]: { ...current, saved: structuredClone(current.draft) } } : prev;
+    });
+  }, []);
 
   const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
   const setLang = useCallback((l: Lang) => setLangState(l), []);
@@ -365,7 +429,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const currentCanvas = useMemo(() => ({ characters: allCharacters.filter((c) => c.storyId === activeStoryId), relations: allRelations.filter((r) => r.storyId === activeStoryId) }), [allCharacters, allRelations, activeStoryId]);
   const canvasDirty = canvasReady && JSON.stringify(currentCanvas) !== JSON.stringify(savedCanvas);
   const saveCanvas = useCallback(() => {
-    localStorage.setItem(canvasKey(activeStoryId), JSON.stringify(currentCanvas));
     setSavedCanvases((prev) => ({ ...prev, [activeStoryId]: currentCanvas }));
   }, [activeStoryId, currentCanvas]);
 
@@ -407,6 +470,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       savedCanvas,
       canvasDirty,
       saveCanvas,
+      timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup,
       notes,
       addNote,
       newStoryOpen,
@@ -417,10 +481,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={value}>{hydrated ? children : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
 }
 
 export function useStore() {
