@@ -18,3 +18,7 @@
 - [x] Align Indonesian canvas save/status and timeline empty/generate/status text with the new terminology.
 - [x] Align English navigation, library heading, Character Bible action placement, and Quick Capture labels.
 - [x] Localize Simplified and Traditional Chinese navigation, capture tags, and manuscript genres.
+- [ ] Persist all writing data, profile, and preferences in IndexedDB; migrate existing local snapshots.
+- [ ] Assemble timelines from chapters locally and preserve explicit saved Inspector references.
+- [ ] Add validated JSON backup/restore and localized privacy/save indicators.
+- [ ] Verify refresh, browser reopen, import cancellation/validation, and local-only writing flows.
