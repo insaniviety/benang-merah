@@ -225,6 +225,18 @@ const id = {
   loginCta: "Masuk di sini",
   loggedIn: "Berhasil masuk. Selamat menulis!",
   loggedOut: "Kamu telah keluar.",
+  exportBackup: "📥 Ekspor Cadangan Naskah",
+  importBackup: "📤 Impor Cadangan Naskah",
+  privacyBadge: "🔒 100% Privat - Seluruh naskah tersimpan secara lokal di perangkat Anda",
+  importConfirm: "Apakah Anda yakin ingin mengimpor file ini? Data lokal akan diperbarui.",
+  importInvalid: "File cadangan tidak valid atau rusak.",
+  importDone: "Cadangan berhasil dipulihkan",
+  exportDone: "Cadangan berhasil diunduh",
+  storageLoading: "Memuat data lokal…",
+  storageError: "Data lokal tidak dapat dibuka. Periksa izin penyimpanan browser.",
+  storageSaving: "Menyimpan di perangkat…",
+  storageSaved: "Tersimpan di perangkat",
+  continueLabel: "Lanjutkan",
 };
 
 export type Dict = typeof id;
@@ -422,6 +434,18 @@ const en: Dict = {
   loginCta: "Sign in here",
   loggedIn: "Signed in. Happy writing!",
   loggedOut: "You have signed out.",
+  exportBackup: "📥 Export Manuscript Backup",
+  importBackup: "📤 Import Manuscript Backup",
+  privacyBadge: "🔒 100% Private - All manuscripts are stored locally on your device",
+  importConfirm: "Are you sure you want to import this file? Local data will be updated.",
+  importInvalid: "The backup file is invalid or damaged.",
+  importDone: "Backup restored",
+  exportDone: "Backup downloaded",
+  storageLoading: "Loading local data…",
+  storageError: "Local data could not be opened. Check your browser storage permissions.",
+  storageSaving: "Saving on this device…",
+  storageSaved: "Saved on this device",
+  continueLabel: "Continue",
 };
 
 const zhCN: Dict = {
@@ -617,6 +641,18 @@ const zhCN: Dict = {
   loginCta: "在此登录",
   loggedIn: "登录成功，祝写作愉快！",
   loggedOut: "您已退出登录。",
+  exportBackup: "📥 导出手稿备份",
+  importBackup: "📤 导入手稿备份",
+  privacyBadge: "🔒 100% 隐私安全 - 所有手稿均保存在您的设备上",
+  importConfirm: "您确定要导入此文件吗？数据将被更新。",
+  importInvalid: "备份文件无效或已损坏。",
+  importDone: "备份已恢复",
+  exportDone: "备份已下载",
+  storageLoading: "正在加载本地数据…",
+  storageError: "无法打开本地数据，请检查浏览器存储权限。",
+  storageSaving: "正在保存到本设备…",
+  storageSaved: "已保存到本设备",
+  continueLabel: "继续",
 };
 
 const zhTW: Dict = {
@@ -776,6 +812,18 @@ const zhTW: Dict = {
   characterAdded: "角色已新增",
   noteAdded: "筆記已儲存",
   writingIn: "寫作語言",
+  exportBackup: "📥 匯出手稿備份",
+  importBackup: "📤 匯入備份",
+  privacyBadge: "🔒 100% 隱私安全 - 所有手稿均儲存在您的裝置上",
+  importConfirm: "您確定要匯入此檔案嗎？資料將被更新。",
+  importInvalid: "備份檔案無效或已損壞。",
+  importDone: "備份已還原",
+  exportDone: "備份已下載",
+  storageLoading: "正在載入本機資料…",
+  storageError: "無法開啟本機資料，請檢查瀏覽器儲存權限。",
+  storageSaving: "正在儲存到本裝置…",
+  storageSaved: "已儲存到本裝置",
+  continueLabel: "繼續",
 };
 
 export const dictionaries: Record<Lang, Dict> = { id, en, "zh-CN": zhCN, "zh-TW": zhTW };
