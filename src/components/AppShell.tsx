@@ -27,7 +27,7 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, signOut, setAuthOpen } = useStore();
+  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, signOut, setAuthOpen, storageStatus } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -74,7 +74,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <div className="border-t border-sidebar-border p-4 text-xs text-muted-foreground">
+      <div className="space-y-2 border-t border-sidebar-border p-4 text-xs text-muted-foreground">
+        <p className="rounded-md border border-success/30 bg-success/10 px-2.5 py-2 leading-relaxed text-success">{t.privacyBadge}</p>
+        <p role="status">{storageStatus === "error" ? t.storageError : storageStatus === "saving" ? t.storageSaving : t.storageSaved}</p>
         {activeStory && (
           <p>
             {t.writingIn}: <span className="text-foreground">{activeStory.language}</span>

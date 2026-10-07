@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -26,15 +26,8 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas } = useStore();
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  useEffect(() => {
-    if (!activeStory) { setTimeline([]); return; }
-    try {
-      const stored = JSON.parse(localStorage.getItem(`bm-timeline-${activeStory.id}`) ?? "[]");
-      setTimeline(Array.isArray(stored) ? stored.filter((event) => event && typeof event.time === "string" && typeof event.location === "string" && Array.isArray(event.characters)) : []);
-    } catch { setTimeline([]); }
-  }, [activeStory?.id]);
+  const { t, activeStory, updateContent, characters, savedCanvas, timelines } = useStore();
+  const timeline: TimelineEvent[] = activeStory ? timelines[activeStory.id]?.saved ?? [] : [];
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [previewing, setPreviewing] = useState<Alert | null>(null);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getGenreLabel } from "@/lib/i18n";
+import { BackupControls } from "@/components/BackupControls";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -36,6 +37,7 @@ function Library() {
         subtitle={t.librarySubtitle}
         action={<Button className="shadow-glow" onClick={() => setNewStoryOpen(true)}><Plus /> {t.newStory.replace(/^\+\s*/, "")}</Button>}
       />
+      <BackupControls />
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {stories.map((s) => {
           const isActive = s.id === activeStory?.id;
