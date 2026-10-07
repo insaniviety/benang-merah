@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Clock3, GitBranch, MapPin, Pencil, Plus, Save, Sparkles, Trash2, Users } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { generateTimeline } from "@/lib/timeline.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 type Event = { id: string; time: string; era: "past" | "present"; track: number; event: string; location: string; characters: string[]; connection: string };
-const storageKey = (id: string) => `bm-timeline-${id}`;
 const blank = (): Event => ({ id: crypto.randomUUID(), time: "", era: "present", track: 1, event: "", location: "", characters: [], connection: "" });
 
 export const Route = createFileRoute("/timeline")({
@@ -29,30 +26,18 @@ export const Route = createFileRoute("/timeline")({
 });
 
 function Timeline() {
-  const { t, activeStory, characters } = useStore();
-  const generate = useServerFn(generateTimeline);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [ready, setReady] = useState(false);
+  const { t, activeStory, characters, timelines, updateTimeline, saveTimeline } = useStore();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
-  const storyId = activeStory?.id;
-  useEffect(() => {
-    setReady(false);
-    setDirty(false);
-    if (!storyId) { setEvents([]); setSaved(false); setReady(true); return; }
-    try {
-      const value = JSON.parse(localStorage.getItem(storageKey(storyId)) ?? "[]");
-      const restored = Array.isArray(value) ? value.filter((e) => e && typeof e.id === "string" && typeof e.event === "string" && typeof e.time === "string" && Array.isArray(e.characters)) as Event[] : [];
-      setEvents(restored); setSaved(restored.length > 0);
-    } catch { setEvents([]); setSaved(false); }
-    setReady(true);
-  }, [storyId]);
+  const record = activeStory ? timelines[activeStory.id] : undefined;
+  const events = record?.draft ?? [];
+  const dirty = JSON.stringify(events) !== JSON.stringify(record?.saved ?? []);
+  const saved = !!record?.saved?.length && !dirty;
+  const ready = true;
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
-  const change = (next: Event[]) => { setEvents(next); setSaved(false); setDirty(true); };
+  const change = (next: Event[]) => updateTimeline(activeStory.id, next);
   const move = (fromId: string, toId: string) => {
     const from = events.findIndex((e) => e.id === fromId), to = events.findIndex((e) => e.id === toId);
     if (from < 0 || to < 0 || from === to) return;
@@ -61,21 +46,21 @@ function Timeline() {
     if (!item) return;
     next.splice(from, 1); next.splice(to, 0, item); change(next);
   };
-  const handleGenerate = async () => {
+  // Assemble suggestions on this device from chapter outlines, without sending manuscript data anywhere.
+  const handleGenerate = () => {
     if (loading) return;
     setLoading(true);
-    try {
-      const result = await generate({ data: {
-        title: activeStory.title, synopsis: activeStory.synopsis, language: activeStory.language,
-        chapters: activeStory.chapters.map((c) => ({ title: c.title, summary: c.summary })),
-        characters: characters.map((c) => c.name),
-      } });
-      change(result.map((e) => ({ ...e, id: crypto.randomUUID(), characters: e.characters.filter((name) => characters.some((c) => c.name === name)) })));
-      toast.success(t.timelineGenerated);
-    } catch (error) { toast.error(error instanceof Error ? error.message : t.timelineGenerateError); }
-    finally { setLoading(false); }
+    const outlined = [...activeStory.chapters].sort((x, y) => x.number - y.number).filter((c) => c.title.trim() || c.summary.trim());
+    if (outlined.length === 0) { toast.error(t.timelineGenerateError); setLoading(false); return; }
+    const next = outlined.map((c) => {
+      const source = `${c.title} ${c.summary}`.toLocaleLowerCase();
+      return { id: crypto.randomUUID(), time: `${t.chapter} ${c.number}`, era: "present" as const, track: 1, event: c.summary.trim() || c.title.trim(), location: "", characters: characters.filter((ch) => source.includes(ch.name.toLocaleLowerCase())).map((ch) => ch.name), connection: "" };
+    });
+    change(next);
+    toast.success(t.timelineGenerated);
+    setLoading(false);
   };
-  const save = () => { localStorage.setItem(storageKey(activeStory.id), JSON.stringify(events)); setSaved(events.length > 0); setDirty(false); toast.success(t.timelineSavedToast); };
+  const save = () => { saveTimeline(activeStory.id); toast.success(t.timelineSavedToast); };
   // Consecutive events with the same time are positioned in parallel tracks.
   const groups: Event[][] = [];
   events.forEach((event) => {
