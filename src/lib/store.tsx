@@ -5,6 +5,7 @@ import { readLocalData, writeLocalData, makeBackup, localDataSchema, timelineEve
 
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { needsEditorConfirmation } from "./editor-save";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -203,6 +204,8 @@ interface StoreValue {
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
   updateStory: (id: string, patch: Pick<Story, "title" | "genres" | "language" | "synopsis">) => void;
   updateContent: (id: string, content: string) => void;
+  editorDirty: boolean;
+  saveEditor: () => Promise<void>;
   addChapter: (storyId: string, c: { title: string; summary: string; target: number }) => void;
   updateChapter: (storyId: string, chapterId: string, patch: Partial<Chapter>) => void;
   openChapter: (storyId: string, chapterId: string) => void;
@@ -247,6 +250,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [pendingSwitch, setPendingSwitch] = useState<{ run: () => void } | null>(null);
   const [savingSwitch, setSavingSwitch] = useState(false);
   const [switchError, setSwitchError] = useState(false);
+  const [unconfirmedStoryIds, setUnconfirmedStoryIds] = useState<string[]>([]);
   const [allCharacters, setCharacters] = useState<Character[]>(seedCharacters);
   const [allRelations, setRelations] = useState<Relation[]>(seedRelations);
   const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
@@ -260,6 +264,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
+    setUnconfirmedStoryIds(data.unconfirmedStoryIds);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
     setTimelines(data.timelines); setNotes(data.notes); setUser(data.user); setTheme(data.theme); setLangState(data.lang);
@@ -294,7 +299,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           let profile: AuthUser | null = null;
           try { if (oldUser) profile = localDataSchema.shape.user.parse(JSON.parse(oldUser)); } catch { /* Invalid profile. */ }
           data = {
-            stories: seedStories, activeStoryId: "s1", notes: seedNotes, user: profile,
+            stories: seedStories, activeStoryId: "s1", notes: seedNotes, user: profile, unconfirmedStoryIds: [],
             characters: [...seedCharacters.filter((c) => !legacyCanvases[c.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.characters)],
             relations: [...seedRelations.filter((r) => !legacyCanvases[r.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.relations)],
             savedCanvases: legacyCanvases, timelines: legacyTimelines,
@@ -322,8 +327,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user, theme, lang,
-  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang]);
+    savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds,
+  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds]);
   useEffect(() => {
     if (!hydrated) return;
     const version = ++revision.current;
@@ -356,22 +361,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setLang = useCallback((l: Lang) => setLangState(l), []);
 
   const requestSwitch = useCallback((run: () => void) => {
-    if (storageStatus !== "saved") {
+    if (needsEditorConfirmation(unconfirmedStoryIds, activeStoryId, storageStatus)) {
       setSwitchError(false);
       setPendingSwitch({ run });
     } else run();
-  }, [storageStatus]);
+  }, [storageStatus, unconfirmedStoryIds, activeStoryId]);
   const setActiveStoryId = useCallback((id: string) => {
     if (id !== activeStoryId) requestSwitch(() => setActiveStoryIdRaw(id));
   }, [activeStoryId, requestSwitch]);
+  const saveEditor = useCallback(async () => {
+    const version = ++revision.current;
+    setStorageStatus("saving");
+    const next = unconfirmedStoryIds.filter((id) => id !== activeStoryId);
+    try {
+      await writeLocalData({ ...data, unconfirmedStoryIds: next });
+      if (revision.current === version) {
+        setUnconfirmedStoryIds(next);
+        setStorageStatus("saved");
+      }
+    } catch (error) {
+      setStorageStatus("error");
+      throw error;
+    }
+  }, [data, unconfirmedStoryIds, activeStoryId]);
   const confirmSwitch = async () => {
     if (!pendingSwitch || savingSwitch) return;
     setSavingSwitch(true);
     setSwitchError(false);
-    const version = ++revision.current;
     try {
-      await writeLocalData(data);
-      if (revision.current === version) setStorageStatus("saved");
+      await saveEditor();
       pendingSwitch.run();
       setPendingSwitch(null);
     } catch {
@@ -394,6 +412,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateContent = useCallback((id: string, content: string) => {
     setStorageStatus("saving");
+    setUnconfirmedStoryIds((prev) => prev.includes(id) ? prev : [...prev, id]);
     const now = new Date().toISOString();
     setStories((prev) => prev.map((s) => (s.id === id ? {
       ...s, content, updatedAt: now,
@@ -491,6 +510,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addStory,
       updateStory,
       updateContent,
+      editorDirty: unconfirmedStoryIds.includes(activeStoryId),
+      saveEditor,
       addChapter,
       updateChapter,
       openChapter,

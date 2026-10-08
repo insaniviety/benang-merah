@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2 } from "lucide-react";
+import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,8 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus } = useStore();
+  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor } = useStore();
+  const [savingEditor, setSavingEditor] = useState(false);
   const timeline: TimelineEvent[] = activeStory ? timelines[activeStory.id]?.saved ?? [] : [];
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -132,6 +133,12 @@ function Dashboard() {
           <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             <span className={cn("size-1.5 rounded-full", storageStatus === "saved" ? "bg-success" : storageStatus === "error" ? "bg-destructive" : "bg-warning")} /> {storageStatus === "saved" ? t.storageSaved : storageStatus === "error" ? t.saveFailed : t.storageSaving} · {words} {t.words}
           </span>
+          <Button size="sm" disabled={savingEditor || (!editorDirty && storageStatus === "saved")} onClick={async () => {
+            setSavingEditor(true);
+            try { await saveEditor(); toast.success(t.storyUpdated); }
+            catch { toast.error(t.saveFailed); }
+            finally { setSavingEditor(false); }
+          }}><Save className="size-4" />{t.saveChanges}</Button>
         </div>
         <div className="paper-grain flex-1 overflow-y-auto scrollbar-thin">
           <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
