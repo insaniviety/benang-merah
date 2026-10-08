@@ -23,4 +23,4 @@
 - [x] Add validated JSON backup/restore and localized privacy/save indicators.
 - [x] Verify refresh, browser reopen, import cancellation/validation, and local-only writing flows.
 
-- [ ] Verify editor autosave status and localized pending/failed-save manuscript-switch confirmation.
+- [x] Verify editor autosave status and localized pending/failed-save manuscript-switch confirmation.
