@@ -26,7 +26,7 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas, timelines } = useStore();
+  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus } = useStore();
   const timeline: TimelineEvent[] = activeStory ? timelines[activeStory.id]?.saved ?? [] : [];
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -130,7 +130,7 @@ function Dashboard() {
           <span className="font-display text-base">{activeStory.title}</span>
           {(() => { const ch = activeStory.chapters.find((c) => c.id === activeStory.activeChapterId); return <span className="text-muted-foreground">· {t.chapter} {ch?.number ?? 1}{ch ? ` — ${ch.title}` : ""}</span>; })()}
           <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-success" /> {t.saved} · {words} {t.words}
+            <span className={cn("size-1.5 rounded-full", storageStatus === "saved" ? "bg-success" : storageStatus === "error" ? "bg-destructive" : "bg-warning")} /> {storageStatus === "saved" ? t.storageSaved : storageStatus === "error" ? t.saveFailed : t.storageSaving} · {words} {t.words}
           </span>
         </div>
         <div className="paper-grain flex-1 overflow-y-auto scrollbar-thin">

@@ -3,6 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { dictionaries, type Dict, type Lang } from "./i18n";
 import { readLocalData, writeLocalData, makeBackup, localDataSchema, timelineEventSchema, type LocalData, type TimelineEvent } from "./local-data";
 
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
 export type Role = "protagonist" | "antagonist" | "supporting";
@@ -240,7 +243,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
   const [lang, setLangState] = useState<Lang>("id");
   const [stories, setStories] = useState<Story[]>(seedStories);
-  const [activeStoryId, setActiveStoryId] = useState("s1");
+  const [activeStoryId, setActiveStoryIdRaw] = useState("s1");
+  const [pendingSwitch, setPendingSwitch] = useState<{ run: () => void } | null>(null);
+  const [savingSwitch, setSavingSwitch] = useState(false);
+  const [switchError, setSwitchError] = useState(false);
   const [allCharacters, setCharacters] = useState<Character[]>(seedCharacters);
   const [allRelations, setRelations] = useState<Relation[]>(seedRelations);
   const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
@@ -254,7 +260,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
-    setStories(data.stories); setActiveStoryId(data.activeStoryId);
+    setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
     setTimelines(data.timelines); setNotes(data.notes); setUser(data.user); setTheme(data.theme); setLangState(data.lang);
   }, []);
@@ -349,17 +355,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
   const setLang = useCallback((l: Lang) => setLangState(l), []);
 
+  const requestSwitch = useCallback((run: () => void) => {
+    if (storageStatus !== "saved") {
+      setSwitchError(false);
+      setPendingSwitch({ run });
+    } else run();
+  }, [storageStatus]);
+  const setActiveStoryId = useCallback((id: string) => {
+    if (id !== activeStoryId) requestSwitch(() => setActiveStoryIdRaw(id));
+  }, [activeStoryId, requestSwitch]);
+  const confirmSwitch = async () => {
+    if (!pendingSwitch || savingSwitch) return;
+    setSavingSwitch(true);
+    setSwitchError(false);
+    const version = ++revision.current;
+    try {
+      await writeLocalData(data);
+      if (revision.current === version) setStorageStatus("saved");
+      pendingSwitch.run();
+      setPendingSwitch(null);
+    } catch {
+      setStorageStatus("error");
+      setSwitchError(true);
+    } finally { setSavingSwitch(false); }
+  };
+
   const addStory: StoreValue["addStory"] = useCallback((s) => {
     const story: Story = { ...s, id: uid(), updatedAt: new Date().toISOString(), chapters: [], content: "" };
-    setStories((prev) => [story, ...prev]);
-    setActiveStoryId(story.id);
-  }, []);
+    requestSwitch(() => {
+      setStories((prev) => [story, ...prev]);
+      setActiveStoryIdRaw(story.id);
+    });
+  }, [requestSwitch]);
 
   const updateStory: StoreValue["updateStory"] = useCallback((id, patch) => {
     setStories((prev) => prev.map((s) => s.id === id ? { ...s, ...patch, updatedAt: new Date().toISOString() } : s));
   }, []);
 
   const updateContent = useCallback((id: string, content: string) => {
+    setStorageStatus("saving");
     const now = new Date().toISOString();
     setStories((prev) => prev.map((s) => (s.id === id ? {
       ...s, content, updatedAt: now,
@@ -383,13 +417,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openChapter: StoreValue["openChapter"] = useCallback((storyId, chapterId) => {
+    requestSwitch(() => {
     setStories((prev) => prev.map((s) => {
       if (s.id !== storyId) return s;
       const ch = s.chapters.find((c) => c.id === chapterId);
       return ch ? { ...s, activeChapterId: chapterId, content: ch.content } : s;
     }));
-    setActiveStoryId(storyId);
-  }, []);
+    setActiveStoryIdRaw(storyId);
+    });
+  }, [requestSwitch]);
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
     (c, relationship) => {
@@ -481,10 +517,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [theme, toggleTheme, lang, setLang, stories, activeStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
-  return <Ctx.Provider value={value}>{hydrated ? children : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
+  return <Ctx.Provider value={value}>
+    <AlertDialog open={!!pendingSwitch} onOpenChange={(open) => { if (!open && !savingSwitch) setPendingSwitch(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{dictionaries[lang].unsavedSwitch}</AlertDialogTitle>
+          <AlertDialogDescription>{switchError ? dictionaries[lang].saveFailed : dictionaries[lang].storageSaving}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <Button variant="outline" disabled={savingSwitch} onClick={() => { pendingSwitch?.run(); setPendingSwitch(null); }}>{dictionaries[lang].no}</Button>
+          <Button disabled={savingSwitch} onClick={() => void confirmSwitch()}>{dictionaries[lang].yes}</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {hydrated ? children : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
 }
 
 export function useStore() {

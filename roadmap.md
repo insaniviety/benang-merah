@@ -22,3 +22,5 @@
 - [x] Assemble timelines from chapters locally and preserve explicit saved Inspector references.
 - [x] Add validated JSON backup/restore and localized privacy/save indicators.
 - [x] Verify refresh, browser reopen, import cancellation/validation, and local-only writing flows.
+
+- [ ] Verify editor autosave status and localized pending/failed-save manuscript-switch confirmation.
