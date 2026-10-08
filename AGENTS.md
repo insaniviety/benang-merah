@@ -15,4 +15,4 @@
 - Persist the full writer workspace as one validated IndexedDB record and restore backups through the same schema; this keeps manuscripts private and imports consistent.
 - Assemble timeline suggestions locally from chapter outlines; manuscript data must not leave the device.
 
-- Keep editor autosave enabled and guard manuscript/chapter switches centrally in the workspace provider while local persistence is pending or failed; switching must not discard in-memory drafts.
+- Keep recovery autosave separate from explicit editor confirmation, persist unconfirmed manuscript IDs, and guard switches centrally until explicitly saved; declining a save must retain drafts.
