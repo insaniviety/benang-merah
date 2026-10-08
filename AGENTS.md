@@ -14,3 +14,5 @@
 - Keep working character and relation edits in shared client state, and publish only explicit per-story Thread Canvas snapshots to the Inspector; this prevents unsaved map changes from becoming plot-hole references.
 - Persist the full writer workspace as one validated IndexedDB record and restore backups through the same schema; this keeps manuscripts private and imports consistent.
 - Assemble timeline suggestions locally from chapter outlines; manuscript data must not leave the device.
+
+- Keep editor autosave enabled and guard manuscript/chapter switches centrally in the workspace provider while local persistence is pending or failed; switching must not discard in-memory drafts.
