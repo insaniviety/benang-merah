@@ -24,3 +24,5 @@
 - [x] Verify refresh, browser reopen, import cancellation/validation, and local-only writing flows.
 
 - [x] Verify editor autosave status and localized pending/failed-save manuscript-switch confirmation.
+- [ ] Add consent-gated Gemini timeline and Inspector using selected-story IndexedDB data and protected server-held credentials.
+- [ ] Update multilingual AI controls/privacy disclosure and verify local backup, consent, and Gemini responses.

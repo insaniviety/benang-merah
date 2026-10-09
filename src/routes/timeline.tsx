@@ -10,6 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeWithGemini } from "@/lib/gemini.functions";
+import { selectedStoryInput } from "@/lib/gemini-data";
+import { parseBackup } from "@/lib/local-data";
+import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { cn } from "@/lib/utils";
 
 type Event = { id: string; time: string; era: "past" | "present"; track: number; event: string; location: string; characters: string[]; connection: string };
@@ -26,7 +31,9 @@ export const Route = createFileRoute("/timeline")({
 });
 
 function Timeline() {
-  const { t, activeStory, characters, timelines, updateTimeline, saveTimeline } = useStore();
+  const { t, activeStory, characters, timelines, updateTimeline, saveTimeline, exportBackup } = useStore();
+  const callGemini = useServerFn(analyzeWithGemini);
+  const [consentOpen, setConsentOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -46,19 +53,19 @@ function Timeline() {
     if (!item) return;
     next.splice(from, 1); next.splice(to, 0, item); change(next);
   };
-  // Assemble suggestions on this device from chapter outlines, without sending manuscript data anywhere.
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (loading) return;
     setLoading(true);
-    const outlined = [...activeStory.chapters].sort((x, y) => x.number - y.number).filter((c) => c.title.trim() || c.summary.trim());
-    if (outlined.length === 0) { toast.error(t.timelineGenerateError); setLoading(false); return; }
-    const next = outlined.map((c) => {
-      const source = `${c.title} ${c.summary}`.toLocaleLowerCase();
-      return { id: crypto.randomUUID(), time: `${t.chapter} ${c.number}`, era: "present" as const, track: 1, event: c.summary.trim() || c.title.trim(), location: "", characters: characters.filter((ch) => source.includes(ch.name.toLocaleLowerCase())).map((ch) => ch.name), connection: "" };
-    });
-    change(next);
-    toast.success(t.timelineGenerated);
-    setLoading(false);
+    const storyId = activeStory.id;
+    try {
+      const snapshot = parseBackup(JSON.parse(await exportBackup()));
+      const result = await callGemini({ data: selectedStoryInput(snapshot, storyId, "timeline", true) });
+      if (!result.ok) { toast.error(result.error); return; }
+      updateTimeline(storyId, result.output.events.map((event) => ({ ...event, id: crypto.randomUUID() })));
+      setConsentOpen(false);
+      toast.success(t.timelineGenerated);
+    } catch { toast.error(t.timelineGenerateError); }
+    finally { setLoading(false); }
   };
   const save = () => { saveTimeline(activeStory.id); toast.success(t.timelineSavedToast); };
   // Consecutive events with the same time are positioned in parallel tracks.
@@ -83,7 +90,7 @@ function Timeline() {
         <div className="flex min-h-[55vh] flex-col items-center justify-center gap-5 text-center">
           <div className="flex size-20 items-center justify-center rounded-full border border-thread/30 bg-thread/10"><Clock3 className="size-9 text-thread" /></div>
           <h2 className="font-display text-2xl font-semibold">{t.timelineEmpty}</h2>
-          <Button size="lg" className="shadow-glow" onClick={handleGenerate} disabled={loading}><Sparkles className="size-5" /> {loading ? t.timelineGenerating : t.generateTimeline}</Button>
+          <Button size="lg" className="shadow-glow" onClick={() => setConsentOpen(true)} disabled={loading}><Sparkles className="size-5" /> {loading ? t.timelineGenerating : t.generateTimeline}</Button>
           <Button variant="ghost" onClick={() => setEditing(blank())}><Plus className="size-4" /> {t.addEvent}</Button>
         </div>
       ) : ready && <>
@@ -110,6 +117,7 @@ function Timeline() {
           </li>})}
         </ol>
       </>}
+      <GeminiConsentDialog open={consentOpen} busy={loading} onClose={() => setConsentOpen(false)} onConfirm={() => void handleGenerate()} />
       <EventDialog key={editing?.id ?? "closed"} value={editing} names={characters.map((c) => c.name)} onClose={() => setEditing(null)} onSave={edit} />
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t.deleteEventConfirm}</AlertDialogTitle><AlertDialogDescription>{t.deleteEventDesc}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t.cancel}</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => { change(events.filter((e) => e.id !== deleting)); setDeleting(null); }}>{t.deleteLabel}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>

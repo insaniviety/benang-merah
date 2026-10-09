@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeWithGemini } from "@/lib/gemini.functions";
+import { selectedStoryInput } from "@/lib/gemini-data";
+import { parseBackup } from "@/lib/local-data";
+import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 
 export const Route = createFileRoute("/")({
@@ -22,11 +27,14 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string; paragraphIndex?: number };
+type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string; paragraphIndex?: number; suggestion?: string };
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor } = useStore();
+  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
+  const callGemini = useServerFn(analyzeWithGemini);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
   const [savingEditor, setSavingEditor] = useState(false);
   const timeline: TimelineEvent[] = activeStory ? timelines[activeStory.id]?.saved ?? [] : [];
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -106,11 +114,25 @@ function Dashboard() {
   if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
-  const visible = alerts.filter((a) => !dismissed.includes(a.id));
+  const signature = JSON.stringify([activeStory, characters, savedCanvas, timeline]);
+  const currentAlerts = aiResult?.signature === signature ? aiResult.findings : alerts;
+  const visible = currentAlerts.filter((a) => !dismissed.includes(a.id));
 
   const paragraphs = activeStory.content.split(/\n\s*\n/);
   const previewOriginal = previewing && previewing.chapterId === activeStory.activeChapterId ? (paragraphs[previewing.paragraphIndex ?? 0] ?? "").trim() : "";
-  const previewSuggestion = previewOriginal;
+  const previewSuggestion = previewing?.suggestion ?? previewOriginal;
+  const checkPlotHoles = async () => {
+    if (analyzing) return;
+    setAnalyzing(true);
+    try {
+      const snapshot = parseBackup(JSON.parse(await exportBackup()));
+      const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true) });
+      if (!result.ok) { toast.error(result.error); return; }
+      setAiResult({ signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) });
+      setDismissed([]); setConsentOpen(false);
+    } catch { toast.error(t.timelineGenerateError); }
+    finally { setAnalyzing(false); }
+  };
   const insert = (text: string) => {
     if (!previewing) return;
     const next = [...paragraphs];
@@ -157,7 +179,7 @@ function Dashboard() {
 
       {/* Inspector */}
       <aside className="flex w-full shrink-0 flex-col border-t bg-card/40 xl:w-96 xl:border-l xl:border-t-0">
-        <div className="flex items-start gap-3 border-b px-5 py-4">
+        <div className="flex flex-wrap items-start gap-3 border-b px-5 py-4">
           <span className="relative mt-0.5 flex size-9 items-center justify-center rounded-xl bg-thread/15 ring-1 ring-thread/40">
             <Bot className="size-4 text-thread" />
             <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-success [animation:pulse-dot_1.6s_ease-in-out_infinite]" />
@@ -170,7 +192,7 @@ function Dashboard() {
             size="icon" variant="ghost" aria-label={t.analyze}
             onClick={() => { setAnalyzing(true); setDismissed([]); setTimeout(() => setAnalyzing(false), 1100); }}
           >
-            <RefreshCw className={cn("size-4", analyzing && "animate-spin")} />
+            <RefreshCw className={cn("size-4", analyzing && "animate-spin")} />{t.analyze}
           </Button>
         </div>
         <div className="grid gap-2 border-b px-5 py-4 text-xs" aria-label="Sumber acuan pemeriksaan">
@@ -201,6 +223,7 @@ function Dashboard() {
           })}
         </div>
       </aside>
+      <GeminiConsentDialog open={consentOpen} busy={analyzing} onClose={() => setConsentOpen(false)} onConfirm={() => void checkPlotHoles()} />
       <AiPreviewDialog
         open={!!previewing}
         onOpenChange={(v) => !v && setPreviewing(null)}
