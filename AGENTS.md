@@ -13,6 +13,6 @@
 - Store manuscript genres as an array and share one form between create and edit; this keeps genre choices consistent across both workflows.
 - Keep working character and relation edits in shared client state, and publish only explicit per-story Thread Canvas snapshots to the Inspector; this prevents unsaved map changes from becoming plot-hole references.
 - Persist the full writer workspace as one validated IndexedDB record and restore backups through the same schema; this keeps manuscripts private and imports consistent.
-- Assemble timeline suggestions locally from chapter outlines; manuscript data must not leave the device.
+- Send only selected-story data to Gemini after per-request consent, through a bounded server function with server-held credentials; never persist or log manuscript payloads on the server.
 
 - Keep recovery autosave separate from explicit editor confirmation, persist unconfirmed manuscript IDs, and guard switches centrally until explicitly saved; declining a save must retain drafts.
