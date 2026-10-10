@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string; paragraphIndex?: number; suggestion?: string };
+type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string | undefined; paragraphIndex?: number | undefined; suggestion?: string | undefined };
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
@@ -189,8 +189,8 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground">{t.inspectorSub}</p>
           </div>
           <Button
-            size="icon" variant="ghost" aria-label={t.analyze}
-            onClick={() => { setAnalyzing(true); setDismissed([]); setTimeout(() => setAnalyzing(false), 1100); }}
+             size="sm" variant="outline" aria-label={t.analyze} disabled={analyzing}
+             onClick={() => setConsentOpen(true)}
           >
             <RefreshCw className={cn("size-4", analyzing && "animate-spin")} />{t.analyze}
           </Button>
