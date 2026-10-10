@@ -12,9 +12,9 @@ export async function runGemini(input: GeminiInput, key: string): Promise<Gemini
   requests.set(ip, now);
   const properties = {
     events: { type: "array", items: { type: "object", properties: {
-      time: { type: "string" }, era: { type: "string", enum: ["past", "present"] }, track: { type: "integer", minimum: 1, maximum: 4 },
+      id: { type: ["string", "null"] }, time: { type: "string" }, era: { type: "string", enum: ["past", "present"] }, track: { type: "integer", minimum: 1, maximum: 4 },
       event: { type: "string" }, location: { type: "string" }, characters: { type: "array", items: { type: "string" } }, connection: { type: "string" },
-    }, required: ["time", "era", "track", "event", "location", "characters", "connection"] } },
+    }, required: ["id", "time", "era", "track", "event", "location", "characters", "connection"] } },
     findings: { type: "array", items: { type: "object", properties: {
       kind: { type: "string", enum: ["chronology", "text", "world", "relationship"] }, body: { type: "string" }, source: { type: "string" },
       chapterId: { type: ["string", "null"] }, paragraphIndex: { type: ["integer", "null"], minimum: 0 }, suggestion: { type: ["string", "null"] },
