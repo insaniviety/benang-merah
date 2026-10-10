@@ -16,7 +16,7 @@ export const findingSchema = z.object({
   chapterId: z.string().nullable(), paragraphIndex: z.number().int().nonnegative().nullable(), suggestion: z.string().nullable(),
 });
 export const geminiOutputSchema = z.object({
-  events: z.array(timelineEventSchema.omit({ id: true })), findings: z.array(findingSchema),
+  events: z.array(timelineEventSchema.omit({ id: true }).extend({ id: z.string().nullable().optional() })), findings: z.array(findingSchema),
 });
 export type GeminiOutput = z.infer<typeof geminiOutputSchema>;
 export function selectedStoryInput(data: LocalData, storyId: string, task: GeminiInput["task"], consent: boolean): GeminiInput {
@@ -27,6 +27,6 @@ export function selectedStoryInput(data: LocalData, storyId: string, task: Gemin
     consent, task, lang: data.lang, story,
     characters: data.characters.filter((c) => c.storyId === storyId),
     canvas: task === "inspector" ? data.savedCanvases[storyId] ?? null : null,
-    timeline: task === "inspector" ? data.timelines[storyId]?.saved ?? [] : [],
+    timeline: task === "inspector" ? data.timelines[storyId]?.saved ?? [] : data.timelines[storyId]?.draft ?? [],
   });
 }

@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { analyzeWithGemini } from "@/lib/gemini.functions";
 import { selectedStoryInput } from "@/lib/gemini-data";
 import { parseBackup } from "@/lib/local-data";
+import { mergeTimeline } from "@/lib/timeline-merge";
 import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { cn } from "@/lib/utils";
 
@@ -59,9 +60,12 @@ function Timeline() {
     const storyId = activeStory.id;
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
-      const result = await callGemini({ data: selectedStoryInput(snapshot, storyId, "timeline", true) });
+      const input = selectedStoryInput(snapshot, storyId, "timeline", true);
+      const result = await callGemini({ data: input });
       if (!result.ok) { toast.error(result.error); return; }
-      updateTimeline(storyId, result.output.events.map((event) => ({ ...event, id: crypto.randomUUID() })));
+      const latest = parseBackup(JSON.parse(await exportBackup()));
+      if (!latest.stories.some((story) => story.id === storyId)) return;
+      updateTimeline(storyId, mergeTimeline(input.timeline, latest.timelines[storyId]?.draft ?? [], result.output.events, () => crypto.randomUUID()));
       setConsentOpen(false);
       toast.success(t.timelineGenerated);
     } catch { toast.error(t.timelineGenerateError); }
@@ -82,10 +86,12 @@ function Timeline() {
       <div className="flex flex-wrap items-start justify-between gap-5 border-b pb-7">
         <div><p className="mb-2 text-xs font-semibold uppercase text-thread">{activeStory.title}</p><h1 className="font-display text-3xl font-semibold md:text-4xl">{t.timelineTitle}</h1><p className="mt-2 text-sm text-muted-foreground">{t.timelineSub}</p></div>
         {ready && (events.length > 0 || dirty) && <div className="flex flex-wrap items-center gap-3">
+          {events.length > 0 && <Button variant="outline" disabled={loading} title={t.timelineUpdating} onClick={() => setConsentOpen(true)}>{t.updateTimeline}</Button>}
           <span role="status" className={cn("max-w-xs text-sm", saved ? "text-success" : "text-warning")}>{saved ? <><span className="inline-block size-2 rounded-full bg-success" /> {t.timelineReady}</> : t.timelineUnsaved}</span>
           <Button onClick={save} disabled={!dirty}><Save className="size-4" /> {t.saveTimeline}</Button>
         </div>}
       </div>
+      {loading && <p role="status" className="text-sm text-muted-foreground">{events.length > 0 ? t.timelineUpdating : t.timelineGenerating}</p>}
       {ready && events.length === 0 ? (
         <div className="flex min-h-[55vh] flex-col items-center justify-center gap-5 text-center">
           <div className="flex size-20 items-center justify-center rounded-full border border-thread/30 bg-thread/10"><Clock3 className="size-9 text-thread" /></div>
