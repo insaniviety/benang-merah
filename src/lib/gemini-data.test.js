@@ -16,3 +16,10 @@ test("Inspector uses only explicitly saved timeline and canvas", () => {
   expect(input.timeline).toEqual([]);
   expect(input.canvas).toBeNull();
 });
+test("Timeline update sends latest chapters and existing draft, not the saved reference", () => {
+  const event = { id: "manual", time: "Today", era: "present", track: 1, event: "Manual event", location: "Home", characters: [], connection: "Writer note" };
+  const chapter = { id: "new-chapter", number: 1, title: "New", status: "draft", summary: "New event", words: 1, content: "Latest text", target: 100, updatedAt: "" };
+  const input = selectedStoryInput({ ...data, stories: [{ ...story("one"), chapters: [chapter] }], timelines: { one: { draft: [event], saved: [] } } }, "one", "timeline", true);
+  expect(input.timeline).toEqual([event]);
+  expect(input.story.chapters[0].content).toBe("Latest text");
+});

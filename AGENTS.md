@@ -16,3 +16,4 @@
 - Send only selected-story data to Gemini after per-request consent, through a bounded server function with server-held credentials; never persist or log manuscript payloads on the server.
 
 - Keep recovery autosave separate from explicit editor confirmation, persist unconfirmed manuscript IDs, and guard switches centrally until explicitly saved; declining a save must retain drafts.
+- Merge timeline AI proposals by stable event IDs with the latest local draft; preserve writer-owned fields and concurrent edits/deletions while adding new events, so updates cannot replace manual work.
