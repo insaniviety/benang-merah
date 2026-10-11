@@ -222,7 +222,7 @@ interface StoreValue {
   canvasDirty: boolean;
   saveCanvas: () => void;
   timelines: LocalData["timelines"];
-  updateTimeline: (id: string, events: TimelineEvent[]) => void;
+  updateTimeline: (id: string, events: TimelineEvent[] | ((current: TimelineEvent[]) => TimelineEvent[])) => void;
   saveTimeline: (id: string) => void;
   storageStatus: "loading" | "saving" | "saved" | "error";
   exportBackup: () => Promise<string>;
@@ -347,8 +347,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     applyData(next);
     setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
   }, [applyData]);
-  const updateTimeline = useCallback((id: string, draft: TimelineEvent[]) => {
-    setTimelines((prev) => ({ ...prev, [id]: { draft, saved: prev[id]?.saved ?? null } }));
+  const updateTimeline = useCallback((id: string, next: TimelineEvent[] | ((current: TimelineEvent[]) => TimelineEvent[])) => {
+    setTimelines((prev) => ({ ...prev, [id]: { draft: typeof next === "function" ? next(prev[id]?.draft ?? []) : next, saved: prev[id]?.saved ?? null } }));
   }, []);
   const saveTimeline = useCallback((id: string) => {
     setTimelines((prev) => {

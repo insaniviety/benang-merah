@@ -26,5 +26,6 @@
 - [x] Verify editor autosave status and localized pending/failed-save manuscript-switch confirmation.
 - [x] Add consent-gated Gemini timeline and Inspector using selected-story IndexedDB data and server-held credentials with request limits.
 - [x] Update multilingual AI controls/privacy disclosure and verify consent, Gemini responses, and existing local backup validation.
-- [ ] Add state-aware timeline generation/update buttons and four-language progress labels.
-- [ ] Merge Gemini updates with existing local events without losing manual edits; test preservation and synchronization.
+- [x] Add state-aware timeline generation/update buttons and four-language progress labels.
+- [x] Merge Gemini updates with existing local events without losing manual edits; unit-test preservation and synchronization.
+- [ ] Verify a live Gemini update result; blocked by slow/incomplete provider responses during end-to-end checks.

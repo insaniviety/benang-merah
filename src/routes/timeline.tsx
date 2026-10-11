@@ -63,9 +63,7 @@ function Timeline() {
       const input = selectedStoryInput(snapshot, storyId, "timeline", true);
       const result = await callGemini({ data: input });
       if (!result.ok) { toast.error(result.error); return; }
-      const latest = parseBackup(JSON.parse(await exportBackup()));
-      if (!latest.stories.some((story) => story.id === storyId)) return;
-      updateTimeline(storyId, mergeTimeline(input.timeline, latest.timelines[storyId]?.draft ?? [], result.output.events, () => crypto.randomUUID()));
+      updateTimeline(storyId, (current) => mergeTimeline(input.timeline, current, result.output.events, () => crypto.randomUUID()));
       setConsentOpen(false);
       toast.success(t.timelineGenerated);
     } catch { toast.error(t.timelineGenerateError); }
