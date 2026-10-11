@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NewStoryDialog } from "./NewStoryDialog";
 import { AuthDialog } from "./AuthDialog";
 import { cn } from "@/lib/utils";
+import { PwaInstallNotice } from "./PwaInstallNotice";
 
 const NAV = [
   { to: "/", key: "navDashboard", icon: Feather },
@@ -75,6 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         })}
       </nav>
       <div className="space-y-2 border-t border-sidebar-border p-4 text-xs text-muted-foreground">
+        <PwaInstallNotice />
         <p className="rounded-md border border-success/30 bg-success/10 px-2.5 py-2 leading-relaxed text-success">{t.privacyBadge}</p>
         <p role="status">{storageStatus === "error" ? t.storageError : storageStatus === "saving" ? t.storageSaving : t.storageSaved}</p>
         {activeStory && (
