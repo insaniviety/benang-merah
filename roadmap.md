@@ -29,3 +29,5 @@
 - [x] Add state-aware timeline generation/update buttons and four-language progress labels.
 - [x] Merge Gemini updates with existing local events without losing manual edits; unit-test preservation and synchronization.
 - [ ] Verify a live Gemini update result; blocked by slow/incomplete provider responses during end-to-end checks.
+- [ ] Add installable PWA manifest, icons, and preview-safe offline caching.
+- [ ] Add localized installation notice and verify installation/offline safeguards.
