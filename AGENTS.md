@@ -18,5 +18,6 @@
 - Keep recovery autosave separate from explicit editor confirmation, persist unconfirmed manuscript IDs, and guard switches centrally until explicitly saved; declining a save must retain drafts.
 - Merge timeline AI proposals by stable event IDs with the latest local draft; preserve writer-owned fields and concurrent edits/deletions while adding new events, so updates cannot replace manual work.
 - Generate the offline app shell with vite-plugin-pwa and register only through the guarded PWA wrapper; this prevents stale app caches in editor previews and leaves messaging workers untouched.
+- Resolve PWA virtual modules in every build environment while emitting PWA assets only in the client build; this keeps server bundling valid without registering a worker during server rendering.
 - Keep localized installation copy separate from manuscript data and render the installation control in the shared sidebar; this makes device installation available across writing workflows without altering local persistence.
 - Prerender only the visitor-independent root shell and finalize offline generation after Start's prerender pass; this supplies an offline fallback while keeping navigations network-first and server/AI requests uncached.
