@@ -26,6 +26,8 @@ export const timelineEventSchema = z.object({
 });
 export type TimelineEvent = z.infer<typeof timelineEventSchema>;
 export const localDataSchema = z.object({
+  writerName: z.string().trim().min(1).max(100).nullable().default(null),
+  presetsCleaned: z.boolean().default(false),
   stories: z.array(story), activeStoryId: z.string(), characters: z.array(character), relations: z.array(relation),
   savedCanvases: z.record(canvas),
   unconfirmedStoryIds: z.array(z.string()).default([]),
