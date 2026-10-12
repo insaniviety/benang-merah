@@ -28,7 +28,7 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, signOut, setAuthOpen, storageStatus } = useStore();
+  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, writerName, signOut, setAuthOpen, storageStatus } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -165,9 +165,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" className="shadow-glow max-w-28 px-2 sm:max-w-none sm:px-3" onClick={() => setAuthOpen(true)}>
+            <div className="flex items-center gap-2"><span className="hidden max-w-32 truncate text-sm font-medium sm:inline">{writerName}</span><Button size="sm" className="shadow-glow max-w-28 px-2 sm:max-w-none sm:px-3" onClick={() => setAuthOpen(true)}>
               <LogIn className="size-4 shrink-0" /> <span className="truncate">{t.signInRegister}</span>
-            </Button>
+            </Button></div>
           )}
         </div>
       </header>

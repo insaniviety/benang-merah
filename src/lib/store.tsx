@@ -1,11 +1,13 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { dictionaries, type Dict, type Lang } from "./i18n";
-import { readLocalData, writeLocalData, makeBackup, localDataSchema, timelineEventSchema, type LocalData, type TimelineEvent } from "./local-data";
+import { readLocalData, writeLocalData, makeBackup, localDataSchema, type LocalData, type TimelineEvent } from "./local-data";
 
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { needsEditorConfirmation } from "./editor-save";
+import { emptyWorkspace, cleanLegacyPresets, removeManuscripts } from "./workspace-lifecycle";
+import { WriterWelcome } from "@/components/WriterWelcome";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -59,7 +61,6 @@ export interface Relation {
 }
 export type RelationDraft = Pick<Relation, "type" | "label"> & { to: string };
 export type CanvasSnapshot = { characters: Character[]; relations: Relation[] };
-const canvasKey = (storyId: string) => `bm-canvas-${storyId}`;
 export interface Note {
   id: string;
   text: string;
@@ -70,122 +71,6 @@ export interface Note {
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const countWords = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
-function mk(c: Omit<Chapter, "content" | "target" | "updatedAt">): Chapter {
-  const content = c.words
-    ? `${c.summary}\n\n${c.title}. Kalimat pembuka bab ini masih menggema dari bab sebelumnya—sunyi, penuh firasat, dan menunggu untuk dibaca ulang.\n\nDi sinilah penulis menata ulang ritme, memeriksa dialog, dan memastikan setiap benang cerita tetap terikat pada benang merahnya.`
-    : "";
-  const day = 10 + (c.number % 9);
-  return { ...c, content, target: Math.max(3000, c.words), updatedAt: `2026-09-${day}T10:00:00Z` };
-}
-
-const seedStories: Story[] = [
-  {
-    id: "s1",
-    title: "Pedang di Bawah Bulan Merah",
-    genres: ["Wuxia"],
-    language: "Bahasa Indonesia",
-    synopsis:
-      "Seorang pendekar buangan kembali ke Lembah Sembilan Naga untuk membalas kematian gurunya, hanya untuk menemukan bahwa musuh sejatinya adalah saudara seperguruannya sendiri.",
-    updatedAt: "2026-09-18T21:40:00Z",
-    content:
-      "Angin dari utara membawa bau besi dan hujan.\n\nLing Yue berdiri di ambang gerbang Lembah Sembilan Naga, jubahnya yang lusuh berkibar seperti bendera yang lupa kepada siapa ia berkibar. Sepuluh tahun. Sepuluh tahun sejak ia dibuang, dan gerbang itu masih setinggi dulu, masih diukir dengan naga yang sama—hanya saja kini matanya tampak lebih lelah.\n\n\"Kau tidak seharusnya kembali,\" suara itu datang dari balik kabut. Tenang. Terlalu tenang.\n\nLing Yue tidak menoleh. Ia tahu suara itu. Ia telah mendengarnya di setiap mimpi buruknya. \"Dan kau tidak seharusnya membunuh Guru, Kakak Seperguruan.\"\n\nHening. Lalu tawa kecil, hampir seperti helaan napas. \"Kau masih memanggilku begitu.\"\n\n",
-    chapters: [
-      mk({ id: "c1", number: 1, title: "Gerbang yang Lupa", status: "done", summary: "Ling Yue kembali ke lembah setelah sepuluh tahun pembuangan.", words: 3120 }),
-      mk({ id: "c2", number: 2, title: "Bayangan di Paviliun Timur", status: "done", summary: "Pertemuan pertama dengan Shen Hao; luka lama terbuka.", words: 2870 }),
-      mk({ id: "c3", number: 3, title: "Surat yang Tak Pernah Dikirim", status: "revision", summary: "Mei Lin menemukan surat wasiat sang Guru.", words: 2410 }),
-      mk({ id: "c4", number: 4, title: "Bulan Merah Pertama", status: "draft", summary: "Duel di jembatan batu; rahasia Shen Hao setengah terungkap.", words: 1560 }),
-      mk({ id: "c5", number: 5, title: "Sembilan Naga Terbangun", status: "planned", summary: "Klimaks di altar kuno.", words: 0 }),
-    ],
-  },
-  {
-    id: "s2",
-    title: "The Cartographer of Lost Hours",
-    genres: ["Fantasy"],
-    language: "English",
-    synopsis:
-      "In a city where time can be mapped like terrain, a young cartographer discovers a district that exists only between midnight and one.",
-    updatedAt: "2026-09-15T09:12:00Z",
-    content:
-      "The map was wrong, which was impossible, because Ilse had drawn it herself.\n\nShe traced the ink with one finger—Weaver's Lane, the clocktower, the crooked square where the pigeons refused to land—and stopped at a street that should not have been there. A thin line, barely a hair, running between two buildings that in daylight stood shoulder to shoulder.\n\n",
-    chapters: [
-      mk({ id: "c6", number: 1, title: "The Thirteenth Hour", status: "done", summary: "Ilse discovers the impossible street.", words: 4020 }),
-      mk({ id: "c7", number: 2, title: "Ink That Remembers", status: "done", summary: "The guild's archives hint at earlier cartographers who vanished.", words: 3350 }),
-      mk({ id: "c8", number: 3, title: "Between Midnight and One", status: "draft", summary: "Ilse enters the district.", words: 980 }),
-    ],
-  },
-  {
-    id: "s3",
-    title: "Hujan di Kedai Kopi Terakhir",
-    genres: ["Romance"],
-    language: "Bahasa Indonesia",
-    synopsis:
-      "Dua orang asing yang selalu berteduh di kedai kopi yang sama setiap kali hujan turun, tanpa pernah berbicara—sampai kedai itu diumumkan akan tutup.",
-    updatedAt: "2026-09-10T14:03:00Z",
-    content:
-      "Hujan selalu datang pukul empat. Begitu juga dia.\n\n",
-    chapters: [
-      mk({ id: "c9", number: 1, title: "Pukul Empat", status: "done", summary: "Ritual diam dua orang asing.", words: 2200 }),
-      mk({ id: "c10", number: 2, title: "Pengumuman", status: "draft", summary: "Kedai akan tutup akhir bulan.", words: 640 }),
-    ],
-  },
-];
-
-for (const st of seedStories) {
-  const cur = [...st.chapters].reverse().find((c) => c.status !== "planned");
-  if (cur) { cur.content = st.content; cur.words = countWords(st.content) || cur.words; st.activeChapterId = cur.id; }
-}
-
-const seedCharacters: Character[] = [
-  { id: "k1", storyId: "s1", name: "Ling Yue", role: "protagonist", identity: "Murid ketiga Guru Bai; adik seperguruan Shen Hao", diction: "Hemat kata, kalimat pendek, sering diam sebelum menjawab. Tidak pernah memakai kata 'aku' saat marah.", status: "active", hue: 15, bio: "Pendekar buangan yang kembali ke lembah setelah sepuluh tahun.", x: 120, y: 200 },
-  { id: "k2", storyId: "s1", name: "Shen Hao", role: "antagonist", identity: "Pemimpin Lembah Sembilan Naga; kakak seperguruan Ling Yue", diction: "Formal dan puitis, senang metafora tentang air dan bayangan. Selalu tenang, bahkan saat mengancam.", status: "active", hue: 260, bio: "Pewaris sah lembah yang memikul rahasia kematian sang Guru.", x: 560, y: 120 },
-  { id: "k3", storyId: "s1", name: "Mei Lin", role: "supporting", identity: "Tabib lembah dan penjaga surat wasiat Guru Bai", diction: "Ceplas-ceplos, humor kering, sering menyela. Memanggil semua orang dengan julukan.", status: "active", hue: 80, bio: "Sahabat lama Ling Yue yang mengetahui banyak rahasia lembah.", x: 340, y: 380 },
-  { id: "k4", storyId: "s1", name: "Guru Bai", role: "supporting", identity: "Pendiri lembah; guru sekaligus ayah angkat Ling Yue dan Shen Hao", diction: "Berbicara dalam peribahasa; kalimatnya sering diulang murid-muridnya.", status: "deceased", hue: 200, bio: "Pendiri Lembah Sembilan Naga. Tewas di bab prolog.", x: 620, y: 400 },
-  { id: "k5", storyId: "s1", name: "Xiao Feng", role: "supporting", identity: "Murid termuda Lembah Sembilan Naga", diction: "Lugu, banyak bertanya, gugup di depan Shen Hao.", status: "missing", hue: 320, bio: "Menghilang pada malam pembunuhan Guru Bai.", x: 160, y: 470 },
-  { id: "k6", storyId: "s2", name: "Ilse Varen", role: "protagonist", identity: "Junior cartographer of the Guild", diction: "Precise, slightly pedantic, thinks in measurements.", status: "active", hue: 200, bio: "A gifted mapmaker investigating the impossible district.", x: 200, y: 220 },
-  { id: "k7", storyId: "s2", name: "The Keeper", role: "antagonist", identity: "Guardian of the thirteenth hour", diction: "Speaks only in questions.", status: "active", hue: 30, bio: "An ageless guardian bound to the hidden district.", x: 560, y: 260 },
-  { id: "k8", storyId: "s3", name: "Raka", role: "protagonist", identity: "Arsitek yang baru pindah kota", diction: "Pendiam, banyak monolog batin.", status: "active", hue: 40, bio: "Menemukan rutinitas baru di kedai kopi terakhir.", x: 200, y: 220 },
-  { id: "k9", storyId: "s3", name: "Nayla", role: "protagonist", identity: "Ilustrator lepas dan pelanggan tetap kedai", diction: "Hangat, senang bercanda dengan barista.", status: "active", hue: 340, bio: "Selalu datang bersamaan dengan hujan pukul empat.", x: 540, y: 240 },
-];
-
-const seedRelations: Relation[] = [
-  { id: "r1", storyId: "s1", from: "k1", to: "k2", type: "conflict", label: "Dendam seperguruan", history: [
-    { chapter: 1, text: "Ling Yue kembali dan menuduh Shen Hao membunuh Guru Bai." },
-    { chapter: 2, text: "Shen Hao menyangkal tanpa membela diri—Ling Yue mulai ragu." },
-    { chapter: 4, text: "Duel di jembatan batu. Shen Hao sengaja kalah." },
-  ] },
-  { id: "r2", storyId: "s1", from: "k1", to: "k3", type: "alliance", label: "Sekutu lama", history: [
-    { chapter: 1, text: "Mei Lin menyembunyikan Ling Yue di gudang obat." },
-    { chapter: 3, text: "Mei Lin menyerahkan surat wasiat Guru." },
-  ] },
-  { id: "r3", storyId: "s1", from: "k2", to: "k4", type: "secret", label: "Wasiat tersembunyi", history: [
-    { chapter: 3, text: "Surat Guru menyebut Shen Hao 'pelindung', bukan 'pembunuh'." },
-  ] },
-  { id: "r4", storyId: "s1", from: "k1", to: "k3", type: "romance", label: "Perasaan yang tak terucap", history: [
-    { chapter: 2, text: "Mei Lin membalut luka Ling Yue dalam diam yang terlalu panjang." },
-  ] },
-  { id: "r5", storyId: "s1", from: "k5", to: "k2", type: "secret", label: "Saksi malam pembunuhan", history: [
-    { chapter: 2, text: "Xiao Feng terlihat terakhir kali di paviliun Shen Hao." },
-  ] },
-  { id: "r6", storyId: "s1", from: "k4", to: "k1", type: "alliance", label: "Guru dan murid", history: [
-    { chapter: 1, text: "Kilas balik: Guru Bai memilih Ling Yue sebagai pewaris rahasia." },
-  ] },
-  { id: "r7", storyId: "s2", from: "k6", to: "k7", type: "conflict", label: "Trespasser and guardian", history: [
-    { chapter: 3, text: "The Keeper asks Ilse why she drew the street." },
-  ] },
-  { id: "r8", storyId: "s3", from: "k8", to: "k9", type: "romance", label: "Dua orang asing", history: [
-    { chapter: 1, text: "Berteduh di meja yang sama, tanpa kata." },
-  ] },
-  { id: "r9", storyId: "s1", from: "k4", to: "k2", type: "family", label: "Ayah angkat dan putra", history: [
-    { chapter: 1, text: "Guru Bai membesarkan Shen Hao sebagai putra sekaligus pewaris lembah." },
-    { chapter: 3, text: "Wasiat Guru mengungkap bahwa ia tetap mempercayai Shen Hao hingga akhir." },
-  ] },
-];
-
-const seedNotes: Note[] = [
-  { id: "n1", text: "Ide: bulan merah muncul hanya saat seseorang berbohong di altar.", createdAt: "2026-09-18T20:11:00Z", tag: "Worldbuilding" },
-  { id: "n2", text: "Dialog Mei Lin: \"Kau pulang membawa pedang, bukan permintaan maaf. Khas.\"", createdAt: "2026-09-17T08:30:00Z", tag: "Dialog" },
-];
-
 export interface AuthUser {
   name: string;
   email: string;
@@ -202,6 +87,8 @@ interface StoreValue {
   activeStory: Story | undefined;
   setActiveStoryId: (id: string) => void;
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
+  deleteStory: (id: string) => Promise<void>;
+  writerName: string | null;
   updateStory: (id: string, patch: Pick<Story, "title" | "genres" | "language" | "synopsis">) => void;
   updateContent: (id: string, content: string) => void;
   editorDirty: boolean;
@@ -245,18 +132,19 @@ const Ctx = (g.__bmStoreCtx ??= createContext<StoreValue | null>(null));
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
   const [lang, setLangState] = useState<Lang>("id");
-  const [stories, setStories] = useState<Story[]>(seedStories);
-  const [activeStoryId, setActiveStoryIdRaw] = useState("s1");
+  const [stories, setStories] = useState<Story[]>([]);
+  const [activeStoryId, setActiveStoryIdRaw] = useState("");
   const [pendingSwitch, setPendingSwitch] = useState<{ run: () => void } | null>(null);
   const [savingSwitch, setSavingSwitch] = useState(false);
   const [switchError, setSwitchError] = useState(false);
   const [unconfirmedStoryIds, setUnconfirmedStoryIds] = useState<string[]>([]);
-  const [allCharacters, setCharacters] = useState<Character[]>(seedCharacters);
-  const [allRelations, setRelations] = useState<Relation[]>(seedRelations);
+  const [allCharacters, setCharacters] = useState<Character[]>([]);
+  const [allRelations, setRelations] = useState<Relation[]>([]);
   const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
   const [canvasReady, setCanvasReady] = useState(false);
-  const [notes, setNotes] = useState<Note[]>(seedNotes);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [newStoryOpen, setNewStoryOpen] = useState(false);
+  const [writerName, setWriterName] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [timelines, setTimelines] = useState<LocalData["timelines"]>({});
@@ -264,6 +152,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
+    setWriterName(data.writerName);
     setUnconfirmedStoryIds(data.unconfirmedStoryIds);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
@@ -276,36 +165,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         let data = await readLocalData();
         if (!data) {
-          const legacyCanvases: LocalData["savedCanvases"] = {};
-          const legacyTimelines: LocalData["timelines"] = {};
-          for (const story of seedStories) {
-            try {
-              const raw = localStorage.getItem(canvasKey(story.id));
-              if (raw) {
-                const parsed = localDataSchema.shape.savedCanvases.safeParse({ [story.id]: JSON.parse(raw) });
-                if (parsed.success) Object.assign(legacyCanvases, parsed.data);
-              }
-            } catch { /* Leave invalid legacy records untouched. */ }
-            try {
-              const raw = localStorage.getItem(`bm-timeline-${story.id}`);
-              if (raw) {
-                const parsed = timelineEventSchema.array().safeParse(JSON.parse(raw));
-                if (parsed.success) legacyTimelines[story.id] = { draft: parsed.data, saved: parsed.data };
-              }
-            } catch { /* Leave invalid legacy records untouched. */ }
-          }
           const oldLang = localStorage.getItem("bm-lang");
-          const oldUser = localStorage.getItem("bm-auth");
-          let profile: AuthUser | null = null;
-          try { if (oldUser) profile = localDataSchema.shape.user.parse(JSON.parse(oldUser)); } catch { /* Invalid profile. */ }
-          data = {
-            stories: seedStories, activeStoryId: "s1", notes: seedNotes, user: profile, unconfirmedStoryIds: [],
-            characters: [...seedCharacters.filter((c) => !legacyCanvases[c.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.characters)],
-            relations: [...seedRelations.filter((r) => !legacyCanvases[r.storyId]), ...Object.values(legacyCanvases).flatMap((m) => m.relations)],
-            savedCanvases: legacyCanvases, timelines: legacyTimelines,
+          data = { ...emptyWorkspace(),
             theme: localStorage.getItem("bm-theme") === "light" ? "light" : "dark",
-            lang: oldLang && oldLang in dictionaries ? oldLang as Lang : "id",
-          };
+            lang: oldLang && oldLang in dictionaries ? oldLang as Lang : "id" };
+          await writeLocalData(data);
+        } else if (!data.presetsCleaned) {
+          data = cleanLegacyPresets(data);
           await writeLocalData(data);
         }
         if (mounted) { applyData(data); setCanvasReady(true); setHydrated(true); setStorageStatus("saved"); }
@@ -327,8 +193,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds,
-  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds]);
+    savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, writerName, presetsCleaned: true,
+  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, writerName]);
   useEffect(() => {
     if (!hydrated) return;
     const version = ++revision.current;
@@ -347,6 +213,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     applyData(next);
     setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
   }, [applyData]);
+  const completeOnboarding = useCallback(async (name: string) => {
+    const next = { ...data, writerName: name };
+    await writeLocalData(next);
+    setWriterName(name);
+  }, [data]);
+  const deleteStory = useCallback(async (id: string) => {
+    if (!data.stories.some((story) => story.id === id)) return;
+    const next = removeManuscripts(data, new Set([id]));
+    ++revision.current;
+    setStorageStatus("saving");
+    try {
+      await writeLocalData(next);
+      applyData(next);
+      setPendingSwitch(null);
+      setStorageStatus("saved");
+    } catch (error) { setStorageStatus("error"); throw error; }
+  }, [data, applyData]);
   const updateTimeline = useCallback((id: string, next: TimelineEvent[] | ((current: TimelineEvent[]) => TimelineEvent[])) => {
     setTimelines((prev) => ({ ...prev, [id]: { draft: typeof next === "function" ? next(prev[id]?.draft ?? []) : next, saved: prev[id]?.saved ?? null } }));
   }, []);
@@ -508,7 +391,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       activeStory: stories.find((s) => s.id === activeStoryId),
       setActiveStoryId,
       addStory,
-      updateStory,
+      updateStory, deleteStory, writerName,
       updateContent,
       editorDirty: unconfirmedStoryIds.includes(activeStoryId),
       saveEditor,
@@ -538,7 +421,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       authOpen,
       setAuthOpen,
     }),
-    [unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
   );
 
   return <Ctx.Provider value={value}>
@@ -554,7 +437,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    {hydrated ? children : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
+    {hydrated ? writerName ? children : <WriterWelcome lang={lang} setLang={setLang} onComplete={completeOnboarding} errorMessage={dictionaries[lang].storageError} /> : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
 }
 
 export function useStore() {
