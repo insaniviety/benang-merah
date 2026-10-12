@@ -27,7 +27,7 @@ const pwaPlugins = VitePWA({
         ? { ...entry, url: "offline-shell.html" } : entry),
       warnings: [],
     })],
-    navigateFallback: undefined,
+    navigateFallback: null,
     runtimeCaching: [
       {
         urlPattern: ({ request, url }) => request.mode === "navigate"
