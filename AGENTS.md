@@ -21,3 +21,5 @@
 - Resolve PWA virtual modules in every build environment while emitting PWA assets only in the client build; this keeps server bundling valid without registering a worker during server rendering.
 - Keep localized installation copy separate from manuscript data and render the installation control in the shared sidebar; this makes device installation available across writing workflows without altering local persistence.
 - Prerender only the visitor-independent root shell and finalize offline generation after Start's prerender pass; this supplies an offline fallback while keeping navigations network-first and server/AI requests uncached.
+- Centralize empty-workspace creation, one-time legacy preset cleanup, and cascading manuscript deletion in workspace lifecycle helpers; this avoids orphaned references while preserving unrelated local work.
+- Persist the local writer name separately from simulated sign-in and gate first use only after hydration; this prevents logout and older backups from erasing onboarding identity.

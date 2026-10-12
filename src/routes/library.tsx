@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, Plus, Layers, CalendarDays, Pencil } from "lucide-react";
+import { BookOpen, Plus, Layers, CalendarDays, Pencil, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { NewStoryDialog } from "@/components/NewStoryDialog";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getGenreLabel } from "@/lib/i18n";
 import { BackupControls } from "@/components/BackupControls";
+import { EmptyManuscripts } from "@/components/EmptyManuscripts";
+import { workspaceCopy } from "@/lib/workspace-copy";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -25,9 +29,13 @@ export const Route = createFileRoute("/library")({
 });
 
 function Library() {
-  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen } = useStore();
+  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen, deleteStory } = useStore();
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
+  const copy = workspaceCopy[lang];
   const fmt = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", year: "numeric" });
 
   return (
@@ -38,6 +46,7 @@ function Library() {
         action={<Button className="shadow-glow" onClick={() => setNewStoryOpen(true)}><Plus /> {t.newStory.replace(/^\+\s*/, "")}</Button>}
       />
       <BackupControls />
+      {stories.length === 0 && <EmptyManuscripts />}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {stories.map((s) => {
           const isActive = s.id === activeStory?.id;
@@ -60,7 +69,12 @@ function Library() {
                 <div className="flex items-center gap-1.5"><Layers className="size-3.5" /> {s.chapters.length} {t.chapters}</div>
                 <div className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> {t.updated} {fmt.format(new Date(s.updatedAt))}</div>
               </dl>
-              <Button variant="ghost" size="sm" className="mt-4 self-start" onClick={() => setEditingId(s.id)}><Pencil className="size-4" /> {t.edit}</Button>
+              <div className="mt-4 flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setEditingId(s.id)}><Pencil className="size-4" /> {t.edit}</Button>
+                <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" aria-label={copy.deleteLabel} onClick={() => { setDeleteError(false); setDeletingId(s.id); }}><Trash2 className="size-4" /></Button>
+                </TooltipTrigger><TooltipContent>{copy.deleteLabel}</TooltipContent></Tooltip></TooltipProvider>
+              </div>
               <Button
                 variant={isActive ? "default" : "secondary"}
                 className="mt-5 w-full"
@@ -73,6 +87,24 @@ function Library() {
         })}
       </div>
       {(() => { const editingStory = stories.find((story) => story.id === editingId); return editingStory ? <NewStoryDialog key={editingStory.id} story={editingStory} open onOpenChange={(value) => { if (!value) setEditingId(null); }} /> : null; })()}
+      <AlertDialog open={deletingId !== null} onOpenChange={(open) => { if (!open && !deleting) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>{copy.deleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{copy.deleteMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="break-words font-medium">{stories.find((story) => story.id === deletingId)?.title}</p>
+          {deleteError && <p role="alert" className="text-sm text-destructive">{t.storageError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{copy.cancel}</AlertDialogCancel>
+            <Button variant="destructive" disabled={deleting} onClick={async () => {
+              if (!deletingId || deleting) return;
+              setDeleting(true);
+              try { await deleteStory(deletingId); setDeletingId(null); }
+              catch { setDeleteError(true); } finally { setDeleting(false); }
+            }}><Trash2 />{copy.confirm}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

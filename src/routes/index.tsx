@@ -12,6 +12,7 @@ import { selectedStoryInput } from "@/lib/gemini-data";
 import { parseBackup } from "@/lib/local-data";
 import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
+import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -111,7 +112,7 @@ function Dashboard() {
     return findings;
   }, [activeStory, characters, savedCanvas, t, timeline]);
 
-  if (!activeStory) return <div className="p-10 text-muted-foreground">{t.noStory}</div>;
+  if (!activeStory) return <div className="mx-auto max-w-6xl p-6 md:p-10"><h1 className="font-display text-3xl font-semibold">{t.libraryTitle}</h1><EmptyManuscripts /></div>;
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
   const signature = JSON.stringify([activeStory, characters, savedCanvas, timeline]);
