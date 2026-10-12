@@ -32,3 +32,4 @@
 - [x] Add installable PWA manifest, icons, and preview-safe offline caching.
 - [x] Add localized installation notice and verify installation/offline safeguards.
 - [ ] Verify native installation and a cold offline reopen on the published app; waiting for publication (not requested in this task).
+- [x] Fix unresolved PWA virtual imports in server builds; verify client/SSR resolution, automatic build status, and editor runtime.

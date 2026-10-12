@@ -59,7 +59,11 @@ const pwaPlugins = VitePWA({
 // Start prerenders after environment builds. Generate SW only after those HTML
 // documents exist, rather than the PWA plugin's earlier client closeBundle.
 for (const plugin of pwaPlugins) {
-  plugin.applyToEnvironment = (environment) => environment.name === "client";
+  // Virtual imports are resolved in every bundle, even when their functions
+  // run only after hydration. Only asset emission is client-exclusive.
+  if (plugin.name !== "vite-plugin-pwa" && plugin.name !== "vite-plugin-pwa:info") {
+    plugin.applyToEnvironment = (environment) => environment.name === "client";
+  }
   if (plugin.name === "vite-plugin-pwa:build") delete plugin.closeBundle;
 }
 const finalizeOffline: Plugin = {
