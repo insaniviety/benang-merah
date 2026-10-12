@@ -33,3 +33,6 @@
 - [x] Add localized installation notice and verify installation/offline safeguards.
 - [ ] Verify native installation and a cold offline reopen on the published app; waiting for publication (not requested in this task).
 - [x] Fix unresolved PWA virtual imports in server builds; verify client/SSR resolution, automatic build status, and editor runtime.
+- [ ] Remove bundled presets and clean existing preset records without removing user-created manuscripts.
+- [ ] Add local writer-name onboarding and four-language empty collection views.
+- [ ] Add confirmed manuscript deletion with related-data cleanup and verify persistence.
