@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { accountWorkspaceKey } from "./account-storage";
 
 const chapter = z.object({
   id: z.string(), number: z.number().int().positive(), title: z.string(),
@@ -78,23 +79,49 @@ function openDatabase() {
   });
   return connection;
 }
-export async function readLocalData(): Promise<LocalData | null> {
+export async function readLocalData(userId?: string): Promise<LocalData | null> {
   const db = await openDatabase();
   const value: unknown = await new Promise((resolve, reject) => {
     const transaction = db.transaction("workspace", "readonly");
-    const request = transaction.objectStore("workspace").get("data");
+    const request = transaction.objectStore("workspace").get(userId === undefined ? "data" : accountWorkspaceKey(userId));
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
   return value == null ? null : validateReferences(localDataSchema.parse(value));
 }
 let writes = Promise.resolve();
-export function writeLocalData(data: LocalData): Promise<void> {
+export async function claimLegacyWorkspace(userId: string): Promise<LocalData | null> {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("workspace", "readwrite");
+    const store = transaction.objectStore("workspace");
+    let claimed: LocalData | null = null;
+    const owner = store.get("legacy-owner");
+    owner.onsuccess = () => {
+      if (owner.result) return;
+      const legacy = store.get("data");
+      legacy.onsuccess = () => {
+        if (!legacy.result) return;
+        try {
+          claimed = validateReferences(localDataSchema.parse(legacy.result));
+          store.put(claimed, accountWorkspaceKey(userId));
+          store.put(userId, "legacy-owner");
+          store.delete("data");
+        } catch { transaction.abort(); }
+      };
+    };
+    transaction.oncomplete = () => resolve(claimed);
+    transaction.onabort = () => reject(transaction.error ?? new Error("Could not claim legacy collection"));
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+export function writeLocalData(data: LocalData, userId?: string): Promise<void> {
+  const key = userId === undefined ? "data" : accountWorkspaceKey(userId);
   const next = writes.catch(() => undefined).then(async () => {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction("workspace", "readwrite");
-      transaction.objectStore("workspace").put(data, "data");
+      transaction.objectStore("workspace").put(data, key);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error ?? new Error("Write aborted"));
