@@ -209,10 +209,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [data]);
   const importBackup = useCallback(async (next: LocalData) => {
     ++revision.current;
-    await writeLocalData(next);
-    applyData(next);
+    const restored = { ...next, writerName: next.writerName ?? writerName ?? (next.user?.name.trim() || null), presetsCleaned: true };
+    await writeLocalData(restored);
+    applyData(restored);
     setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
-  }, [applyData]);
+  }, [applyData, writerName]);
   const completeOnboarding = useCallback(async (name: string) => {
     const next = { ...data, writerName: name };
     await writeLocalData(next);
