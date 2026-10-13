@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "../lib/store";
 import { AppShell } from "../components/AppShell";
 import { Toaster } from "../components/ui/sonner";
+import { AccountGate } from "../components/AccountGate";
 
 function NotFoundComponent() {
   return (
@@ -129,13 +130,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
+      <AccountGate>{(account, logout) => <StoreProvider key={account.id} account={account} onSignOut={logout}>
         <AppShell>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </AppShell>
         <Toaster />
-      </StoreProvider>
+      </StoreProvider>}</AccountGate>
     </QueryClientProvider>
   );
 }

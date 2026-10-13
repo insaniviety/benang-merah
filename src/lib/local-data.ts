@@ -90,6 +90,31 @@ export async function readLocalData(userId?: string): Promise<LocalData | null> 
   return value == null ? null : validateReferences(localDataSchema.parse(value));
 }
 let writes = Promise.resolve();
+export async function claimLegacyWorkspace(userId: string): Promise<LocalData | null> {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("workspace", "readwrite");
+    const store = transaction.objectStore("workspace");
+    let claimed: LocalData | null = null;
+    const owner = store.get("legacy-owner");
+    owner.onsuccess = () => {
+      if (owner.result) return;
+      const legacy = store.get("data");
+      legacy.onsuccess = () => {
+        if (!legacy.result) return;
+        try {
+          claimed = validateReferences(localDataSchema.parse(legacy.result));
+          store.put(claimed, accountWorkspaceKey(userId));
+          store.put(userId, "legacy-owner");
+          store.delete("data");
+        } catch { transaction.abort(); }
+      };
+    };
+    transaction.oncomplete = () => resolve(claimed);
+    transaction.onabort = () => reject(transaction.error ?? new Error("Could not claim legacy collection"));
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
 export function writeLocalData(data: LocalData, userId?: string): Promise<void> {
   const key = userId === undefined ? "data" : accountWorkspaceKey(userId);
   const next = writes.catch(() => undefined).then(async () => {
