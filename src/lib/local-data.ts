@@ -79,17 +79,19 @@ function openDatabase() {
   });
   return connection;
 }
-export async function readLocalData(userId?: string): Promise<LocalData | null> {
+async function readWorkspace(key: string): Promise<LocalData | null> {
   const db = await openDatabase();
   const value: unknown = await new Promise((resolve, reject) => {
     const transaction = db.transaction("workspace", "readonly");
-    const request = transaction.objectStore("workspace").get(userId === undefined ? "data" : accountWorkspaceKey(userId));
+    const request = transaction.objectStore("workspace").get(key);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
   return value == null ? null : validateReferences(localDataSchema.parse(value));
 }
 let writes = Promise.resolve();
+export function readLocalData(userId: string) { return readWorkspace(accountWorkspaceKey(userId)); }
+export function readLegacyData() { return readWorkspace("data"); }
 export async function claimLegacyWorkspace(userId: string): Promise<LocalData | null> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
@@ -115,8 +117,8 @@ export async function claimLegacyWorkspace(userId: string): Promise<LocalData | 
     transaction.onerror = () => reject(transaction.error);
   });
 }
-export function writeLocalData(data: LocalData, userId?: string): Promise<void> {
-  const key = userId === undefined ? "data" : accountWorkspaceKey(userId);
+export function writeLocalData(data: LocalData, userId: string): Promise<void> {
+  const key = accountWorkspaceKey(userId);
   const next = writes.catch(() => undefined).then(async () => {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {

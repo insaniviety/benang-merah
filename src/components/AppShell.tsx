@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   BookOpen, Feather, Users, Share2, Clock, Zap, Moon, Sun, Languages, Menu, X, ChevronDown, Plus, PenLine,
-  LogIn, LogOut, User, Settings, Sparkles,
+  LogOut,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { LANGS, type Lang } from "@/lib/i18n";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NewStoryDialog } from "./NewStoryDialog";
-import { AuthDialog } from "./AuthDialog";
+import { accountCopy } from "@/lib/account-copy";
 import { cn } from "@/lib/utils";
 import { PwaInstallNotice } from "./PwaInstallNotice";
 
@@ -28,7 +28,8 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, writerName, signOut, setAuthOpen, storageStatus } = useStore();
+  const { t, theme, toggleTheme, lang, setLang, stories, activeStory, setActiveStoryId, setNewStoryOpen, user, writerName, signOut, storageStatus } = useStore();
+  const [signingOut, setSigningOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -127,48 +128,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </Button>
 
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full border pl-1 pr-3 py-1 hover:bg-accent">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-primary font-display text-sm font-semibold text-primary-foreground">
-                    {user.name.trim().charAt(0).toUpperCase()}
-                  </span>
-                  <span className="hidden max-w-32 truncate text-sm font-medium sm:inline">{user.name.split(" ")[0]}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel>
-                  <p className="font-display text-base">{user.name}</p>
-                  <p className="truncate text-xs font-normal text-muted-foreground">{user.email}</p>
-                  <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-thread/15 px-2 py-0.5 text-[11px] font-medium text-thread ring-1 ring-thread/30">
-                    <Sparkles className="size-3" /> {user.plan}
-                  </span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="size-4" /> {t.myProfile}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="size-4" /> {t.settings}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                  onClick={() => {
-                    signOut();
-                    toast.success(t.loggedOut);
-                  }}
-                >
-                  <LogOut className="size-4" /> {t.signOut}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="flex items-center gap-2"><span className="hidden max-w-32 truncate text-sm font-medium sm:inline">{writerName}</span><Button size="sm" className="shadow-glow max-w-28 px-2 sm:max-w-none sm:px-3" onClick={() => setAuthOpen(true)}>
-              <LogIn className="size-4 shrink-0" /> <span className="truncate">{t.signInRegister}</span>
-            </Button></div>
-          )}
+          <span className="hidden max-w-32 truncate text-sm font-medium sm:inline" title={user?.email}>{writerName}</span>
+          <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={signingOut} onClick={async () => {
+            setSigningOut(true);
+            try { await signOut(); toast.success(t.loggedOut); } catch { toast.error(t.storageError); } finally { setSigningOut(false); }
+          }}><LogOut className="size-4" />{accountCopy[lang].logout}</Button>
         </div>
       </header>
 
@@ -185,7 +149,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <NewStoryDialog />
-      <AuthDialog />
     </div>
   );
 }

@@ -12,7 +12,7 @@
 - Keep chapter management on `/chapters` and per-story event timelines on `/timeline`; they are distinct writing workflows.
 - Store manuscript genres as an array and share one form between create and edit; this keeps genre choices consistent across both workflows.
 - Keep working character and relation edits in shared client state, and publish only explicit per-story Thread Canvas snapshots to the Inspector; this prevents unsaved map changes from becoming plot-hole references.
-- Persist the full writer workspace as one validated IndexedDB record and restore backups through the same schema; this keeps manuscripts private and imports consistent.
+- Persist each writer workspace as one validated account-ID-keyed IndexedDB record and restore backups through the same schema; this keeps collections isolated and imports consistent.
 - Send only selected-story data to Gemini after per-request consent, through a bounded server function with server-held credentials; never persist or log manuscript payloads on the server.
 
 - Keep recovery autosave separate from explicit editor confirmation, persist unconfirmed manuscript IDs, and guard switches centrally until explicitly saved; declining a save must retain drafts.
@@ -22,4 +22,6 @@
 - Keep localized installation copy separate from manuscript data and render the installation control in the shared sidebar; this makes device installation available across writing workflows without altering local persistence.
 - Prerender only the visitor-independent root shell and finalize offline generation after Start's prerender pass; this supplies an offline fallback while keeping navigations network-first and server/AI requests uncached.
 - Centralize empty-workspace creation, one-time legacy preset cleanup, and cascading manuscript deletion in workspace lifecycle helpers; this avoids orphaned references while preserving unrelated local work.
-- Persist the local writer name separately from simulated sign-in and gate first use only after hydration; this prevents logout and older backups from erasing onboarding identity.
+- Require an explicit verified email/password login in AccountGate on each fresh document opening, and remount StoreProvider by account ID; this prevents remembered sessions or old client state from unlocking another collection.
+- Store writer display names in owner-readable Cloud profiles created by a signup trigger, never trust backup identity as authentication; this separates account identity from local manuscripts.
+- Allow one-time legacy local collection adoption only by explicit confirmation using an atomic IndexedDB ownership claim; this preserves existing work without sharing it between accounts.
