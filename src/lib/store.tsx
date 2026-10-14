@@ -1,13 +1,14 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { dictionaries, type Dict, type Lang } from "./i18n";
-import { readLocalData, writeLocalData, makeBackup, localDataSchema, type LocalData, type TimelineEvent } from "./local-data";
+import { readLocalData as readAccountData, writeLocalData as writeAccountData, readLegacyData, claimLegacyWorkspace, makeBackup, type LocalData, type TimelineEvent } from "./local-data";
 
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { needsEditorConfirmation } from "./editor-save";
 import { emptyWorkspace, cleanLegacyPresets, removeManuscripts } from "./workspace-lifecycle";
-import { WriterWelcome } from "@/components/WriterWelcome";
+import type { WriterAccount } from "@/components/AccountGate";
+import { accountCopy } from "./account-copy";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -119,17 +120,16 @@ interface StoreValue {
   newStoryOpen: boolean;
   setNewStoryOpen: (v: boolean) => void;
   user: AuthUser | null;
-  signIn: (u: AuthUser) => void;
-  signOut: () => void;
-  authOpen: boolean;
-  setAuthOpen: (v: boolean) => void;
+  signOut: () => Promise<void>;
 }
 
 // Keep one context instance across hot reloads so provider and consumers always match.
 const g = globalThis as unknown as { __bmStoreCtx?: React.Context<StoreValue | null> };
 const Ctx = (g.__bmStoreCtx ??= createContext<StoreValue | null>(null));
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({ children, account, onSignOut }: { children: ReactNode; account: WriterAccount; onSignOut: () => Promise<void> }) {
+  const readLocalData = useCallback(() => readAccountData(account.id), [account.id]);
+  const writeLocalData = useCallback((data: LocalData) => writeAccountData(data, account.id), [account.id]);
   const [theme, setTheme] = useState<Theme>("dark");
   const [lang, setLangState] = useState<Lang>("id");
   const [stories, setStories] = useState<Story[]>([]);
@@ -144,19 +144,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [canvasReady, setCanvasReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [newStoryOpen, setNewStoryOpen] = useState(false);
-  const [writerName, setWriterName] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
+  const writerName = account.name;
+  const user = useMemo<AuthUser>(() => ({ name: account.name, email: account.email, plan: "" }), [account.name, account.email]);
+  const [legacyAvailable, setLegacyAvailable] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState(false);
   const [timelines, setTimelines] = useState<LocalData["timelines"]>({});
   const [storageStatus, setStorageStatus] = useState<StoreValue["storageStatus"]>("loading");
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
-    setWriterName(data.writerName);
     setUnconfirmedStoryIds(data.unconfirmedStoryIds);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
-    setTimelines(data.timelines); setNotes(data.notes); setUser(data.user); setTheme(data.theme); setLangState(data.lang);
+    setTimelines(data.timelines); setNotes(data.notes); setTheme(data.theme); setLangState(data.lang);
   }, []);
 
   useEffect(() => {
@@ -164,6 +165,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const restore = async () => {
       try {
         let data = await readLocalData();
+        if (!data) {
+          const legacy = await readLegacyData();
+          if (mounted && legacy && (legacy.stories.length || legacy.notes.length)) setLegacyAvailable(true);
+        }
         if (!data) {
           const oldLang = localStorage.getItem("bm-lang");
           data = { ...emptyWorkspace(),
@@ -180,7 +185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
     void restore();
     return () => { mounted = false; };
-  }, [applyData]);
+  }, [applyData, readLocalData, writeLocalData]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -193,7 +198,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, writerName, presetsCleaned: true,
+    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, writerName, presetsCleaned: true,
   }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, writerName]);
   useEffect(() => {
     if (!hydrated) return;
@@ -202,23 +207,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void writeLocalData(data).then(() => {
       if (revision.current === version) setStorageStatus("saved");
     }).catch(() => { if (revision.current === version) setStorageStatus("error"); });
-  }, [data, hydrated]);
+  }, [data, hydrated, writeLocalData]);
   const exportBackup = useCallback(async () => {
     await writeLocalData(data);
     return makeBackup(data);
-  }, [data]);
+  }, [data, writeLocalData]);
   const importBackup = useCallback(async (next: LocalData) => {
     ++revision.current;
-    const restored = { ...next, writerName: next.writerName ?? writerName ?? (next.user?.name.trim() || null), presetsCleaned: true };
+    const restored = { ...next, writerName, user: null, presetsCleaned: true };
     await writeLocalData(restored);
     applyData(restored);
     setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
-  }, [applyData, writerName]);
-  const completeOnboarding = useCallback(async (name: string) => {
-    const next = { ...data, writerName: name };
-    await writeLocalData(next);
-    setWriterName(name);
-  }, [data]);
+  }, [applyData, writerName, writeLocalData]);
   const deleteStory = useCallback(async (id: string) => {
     if (!data.stories.some((story) => story.id === id)) return;
     const next = removeManuscripts(data, new Set([id]));
@@ -230,7 +230,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPendingSwitch(null);
       setStorageStatus("saved");
     } catch (error) { setStorageStatus("error"); throw error; }
-  }, [data, applyData]);
+  }, [data, applyData, writeLocalData]);
   const updateTimeline = useCallback((id: string, next: TimelineEvent[] | ((current: TimelineEvent[]) => TimelineEvent[])) => {
     setTimelines((prev) => ({ ...prev, [id]: { draft: typeof next === "function" ? next(prev[id]?.draft ?? []) : next, saved: prev[id]?.saved ?? null } }));
   }, []);
@@ -267,7 +267,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setStorageStatus("error");
       throw error;
     }
-  }, [data, unconfirmedStoryIds, activeStoryId]);
+  }, [data, unconfirmedStoryIds, activeStoryId, writeLocalData]);
   const confirmSwitch = async () => {
     if (!pendingSwitch || savingSwitch) return;
     setSavingSwitch(true);
@@ -375,11 +375,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => [{ id: uid(), text, tag, createdAt: new Date().toISOString() }, ...prev]);
   }, []);
 
-  const signIn = useCallback((u: AuthUser) => {
-    setUser(u);
-    setAuthOpen(false);
-  }, []);
-  const signOut = useCallback(() => setUser(null), []);
+  const signOut = useCallback(async () => {
+    await writeLocalData(data);
+    await onSignOut();
+  }, [data, writeLocalData, onSignOut]);
 
   const value = useMemo<StoreValue>(
     () => ({
@@ -417,12 +416,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       newStoryOpen,
       setNewStoryOpen,
       user,
-      signIn,
       signOut,
-      authOpen,
-      setAuthOpen,
     }),
-    [deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signIn, signOut, authOpen],
+    [deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signOut],
   );
 
   return <Ctx.Provider value={value}>
@@ -438,7 +434,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-    {hydrated ? writerName ? children : <WriterWelcome lang={lang} setLang={setLang} onComplete={completeOnboarding} errorMessage={dictionaries[lang].storageError} /> : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
+    <AlertDialog open={hydrated && legacyAvailable}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>{accountCopy[lang].legacy}</AlertDialogTitle><AlertDialogDescription>{accountCopy[lang].legacyBody}</AlertDialogDescription></AlertDialogHeader>
+        {claimError && <p role="alert" className="text-destructive">{dictionaries[lang].storageError}</p>}
+        <AlertDialogFooter>
+          <Button variant="outline" disabled={claiming} onClick={() => setLegacyAvailable(false)}>{accountCopy[lang].skip}</Button>
+          <Button disabled={claiming} onClick={async () => {
+            setClaiming(true); setClaimError(false);
+            try {
+              const legacy = await claimLegacyWorkspace(account.id);
+              if (legacy) { const next = { ...cleanLegacyPresets(legacy), writerName: account.name, user: null }; await writeLocalData(next); applyData(next); }
+              setLegacyAvailable(false);
+            } catch { setClaimError(true); } finally { setClaiming(false); }
+          }}>{accountCopy[lang].claim}</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    {hydrated ? children : <div className="flex min-h-screen items-center justify-center p-6 text-muted-foreground" role="status">{storageStatus === "error" ? dictionaries[lang].storageError : dictionaries[lang].storageLoading}</div>}</Ctx.Provider>;
 }
 
 export function useStore() {
