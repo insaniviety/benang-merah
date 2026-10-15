@@ -25,3 +25,4 @@
 - Require an explicit verified email/password login in AccountGate on each fresh document opening, and remount StoreProvider by account ID; this prevents remembered sessions or old client state from unlocking another collection.
 - Store writer display names in owner-readable Cloud profiles created by a signup trigger, never trust backup identity as authentication; this separates account identity from local manuscripts.
 - Allow one-time legacy local collection adoption only by explicit confirmation using an atomic IndexedDB ownership claim; this preserves existing work without sharing it between accounts.
+- Require an existing manuscript for character creation and canvas saving, validate workspace writes, and repair only legacy empty-story-ID records on local reads; this prevents orphaned data from blocking workspace restoration without discarding unrelated work.

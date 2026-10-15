@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useStore, type Character, type CharStatus, type Role } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { NewCharacterDialog } from "@/components/NewCharacterDialog";
+import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/characters")({
 });
 
 function Characters() {
-  const { t, characters, deleteCharacter } = useStore();
+  const { t, activeStory, characters, deleteCharacter } = useStore();
   const [editing, setEditing] = useState<Character | null>(null);
   const [deleting, setDeleting] = useState<Character | null>(null);
   const roleLabel: Record<Role, string> = { protagonist: t.protagonist, antagonist: t.antagonist, supporting: t.supporting };
@@ -44,7 +45,8 @@ function Characters() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-6 md:p-10">
-      <PageHeader title={t.charactersTitle} subtitle={t.charactersSub} action={<NewCharacterDialog />} />
+      <PageHeader title={t.charactersTitle} subtitle={t.charactersSub} action={activeStory ? <NewCharacterDialog /> : undefined} />
+      {!activeStory && <EmptyManuscripts />}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {characters.map((c) => (
           <article key={c.id} className="flex flex-col rounded-2xl border bg-card p-6 shadow-soft transition-transform hover:-translate-y-1">

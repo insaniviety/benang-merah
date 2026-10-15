@@ -39,3 +39,4 @@
 - [x] Implement email/password entry and registration with online writer profiles; require explicit login on every fresh opening.
 - [x] Separate local writing collections per account and replace header account controls with Sign Out.
 - [ ] Complete real email/password login, logout, and last-work restoration end-to-end verification after confirming the test account email; registration/profile creation and account storage isolation tests pass.
+- [ ] Prevent characters without a manuscript and recover affected local records without losing valid writing data.
