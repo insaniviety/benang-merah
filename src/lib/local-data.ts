@@ -87,7 +87,28 @@ async function readWorkspace(key: string): Promise<LocalData | null> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-  return value == null ? null : validateReferences(localDataSchema.parse(value));
+  if (value == null) return null;
+  const parsed = localDataSchema.parse(value);
+  // Older versions could save story-scoped data before a manuscript existed.
+  // Repair only that known empty-ID defect; reject other invalid references.
+  const orphanIds = new Set(parsed.characters.filter((c) => c.storyId === "").map((c) => c.id));
+  const repaired = validateReferences({
+    ...parsed,
+    characters: parsed.characters.filter((c) => c.storyId !== ""),
+    relations: parsed.relations.filter((r) => r.storyId !== "" && !orphanIds.has(r.from) && !orphanIds.has(r.to)),
+    savedCanvases: Object.fromEntries(Object.entries(parsed.savedCanvases).filter(([id]) => id !== "")),
+    timelines: Object.fromEntries(Object.entries(parsed.timelines).filter(([id]) => id !== "")),
+  });
+  if (JSON.stringify(parsed) !== JSON.stringify(repaired)) {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("workspace", "readwrite");
+      transaction.objectStore("workspace").put(repaired, key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error ?? new Error("Repair aborted"));
+    });
+  }
+  return repaired;
 }
 let writes = Promise.resolve();
 export function readLocalData(userId: string) { return readWorkspace(accountWorkspaceKey(userId)); }
@@ -119,11 +140,12 @@ export async function claimLegacyWorkspace(userId: string): Promise<LocalData | 
 }
 export function writeLocalData(data: LocalData, userId: string): Promise<void> {
   const key = accountWorkspaceKey(userId);
+  const validated = validateReferences(localDataSchema.parse(data));
   const next = writes.catch(() => undefined).then(async () => {
     const db = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction("workspace", "readwrite");
-      transaction.objectStore("workspace").put(data, key);
+      transaction.objectStore("workspace").put(validated, key);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error ?? new Error("Write aborted"));

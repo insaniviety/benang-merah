@@ -332,6 +332,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
     (c, relationship) => {
+      if (!stories.some((story) => story.id === activeStoryId)) return;
       const id = uid();
       setCharacters((prev) => [
         ...prev,
@@ -341,7 +342,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
         setRelations((prev) => [...prev, { id: uid(), storyId: activeStoryId, from: id, to: relationship.to, type: relationship.type, label: relationship.label.trim(), history: [] }]);
       }
     },
-    [activeStoryId, allCharacters],
+    [activeStoryId, allCharacters, stories],
   );
 
   const moveCharacter = useCallback((id: string, x: number, y: number) => {
@@ -368,8 +369,9 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const currentCanvas = useMemo(() => ({ characters: allCharacters.filter((c) => c.storyId === activeStoryId), relations: allRelations.filter((r) => r.storyId === activeStoryId) }), [allCharacters, allRelations, activeStoryId]);
   const canvasDirty = canvasReady && JSON.stringify(currentCanvas) !== JSON.stringify(savedCanvas);
   const saveCanvas = useCallback(() => {
+    if (!stories.some((story) => story.id === activeStoryId)) return;
     setSavedCanvases((prev) => ({ ...prev, [activeStoryId]: currentCanvas }));
-  }, [activeStoryId, currentCanvas]);
+  }, [activeStoryId, currentCanvas, stories]);
 
   const addNote = useCallback((text: string, tag: string) => {
     setNotes((prev) => [{ id: uid(), text, tag, createdAt: new Date().toISOString() }, ...prev]);
