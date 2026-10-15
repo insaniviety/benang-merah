@@ -36,6 +36,6 @@
 - [x] Remove bundled presets and clean existing preset records without removing user-created manuscripts.
 - [x] Add local writer-name onboarding and four-language empty collection views.
 - [x] Add confirmed manuscript deletion with related-data cleanup and verify persistence.
-- [ ] Implement email/password entry and registration with online writer profiles; require explicit login on every fresh opening.
-- [ ] Separate local writing collections per account and replace header account controls with Sign Out.
-- [ ] Verify registration, login, logout, account separation, and last-work restoration end to end.
+- [x] Implement email/password entry and registration with online writer profiles; require explicit login on every fresh opening.
+- [x] Separate local writing collections per account and replace header account controls with Sign Out.
+- [ ] Complete real email/password login, logout, and last-work restoration end-to-end verification after confirming the test account email; registration/profile creation and account storage isolation tests pass.
