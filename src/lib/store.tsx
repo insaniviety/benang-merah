@@ -332,17 +332,23 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
     (c, relationship) => {
-      if (!stories.some((story) => story.id === activeStoryId)) return;
+      let storyId = activeStoryId;
+      if (!stories.some((story) => story.id === storyId)) {
+        const story: Story = { id: uid(), title: dictionaries[lang].autoStoryTitle, genres: [], language: lang, synopsis: "", updatedAt: new Date().toISOString(), chapters: [], content: "" };
+        setStories((prev) => [story, ...prev]);
+        setActiveStoryIdRaw(story.id);
+        storyId = story.id;
+      }
       const id = uid();
       setCharacters((prev) => [
         ...prev,
-        { ...c, id, storyId: activeStoryId, hue: Math.floor(Math.random() * 360), x: 80 + ((allCharacters.filter((existing) => existing.storyId === activeStoryId).length % 4) * 175), y: 400 + (Math.floor(allCharacters.filter((existing) => existing.storyId === activeStoryId).length / 4) - 1) * 90 },
+        { ...c, id, storyId, hue: Math.floor(Math.random() * 360), x: 80 + ((allCharacters.filter((existing) => existing.storyId === storyId).length % 4) * 175), y: 400 + (Math.floor(allCharacters.filter((existing) => existing.storyId === storyId).length / 4) - 1) * 90 },
       ]);
-      if (relationship && allCharacters.some((existing) => existing.id === relationship.to && existing.storyId === activeStoryId)) {
-        setRelations((prev) => [...prev, { id: uid(), storyId: activeStoryId, from: id, to: relationship.to, type: relationship.type, label: relationship.label.trim(), history: [] }]);
+      if (relationship && allCharacters.some((existing) => existing.id === relationship.to && existing.storyId === storyId)) {
+        setRelations((prev) => [...prev, { id: uid(), storyId, from: id, to: relationship.to, type: relationship.type, label: relationship.label.trim(), history: [] }]);
       }
     },
-    [activeStoryId, allCharacters, stories],
+    [activeStoryId, allCharacters, stories, lang],
   );
 
   const moveCharacter = useCallback((id: string, x: number, y: number) => {
