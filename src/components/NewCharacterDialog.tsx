@@ -34,7 +34,7 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
   }, [open, character]);
 
   const submit = () => {
-    if (!activeStory || !name.trim()) return;
+    if (!name.trim()) return;
     const data = { name: name.trim(), role, status, identity: identity.trim(), diction: diction.trim(), bio: bio.trim() };
     if (character) {
       updateCharacter(character.id, data);
@@ -52,7 +52,7 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
     <Dialog open={open} onOpenChange={setOpen}>
       {!isEdit && openProp === undefined && (
         <DialogTrigger asChild>
-          <Button className="shadow-glow" disabled={!activeStory}><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
+          <Button className="shadow-glow"><Plus /> {t.addCharacter.replace(/^\+\s*/, "")}</Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -123,7 +123,7 @@ export function NewCharacterDialog({ character, open: openProp, onOpenChange }: 
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>{t.cancel}</Button>
-          <Button onClick={submit} disabled={!activeStory || !name.trim()}>{isEdit ? t.saveChanges : t.save}</Button>
+          <Button onClick={submit} disabled={!name.trim()}>{isEdit ? t.saveChanges : t.save}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

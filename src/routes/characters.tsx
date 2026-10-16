@@ -45,7 +45,7 @@ function Characters() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-6 md:p-10">
-      <PageHeader title={t.charactersTitle} subtitle={t.charactersSub} action={activeStory ? <NewCharacterDialog /> : undefined} />
+      <PageHeader title={t.charactersTitle} subtitle={t.charactersSub} action={<NewCharacterDialog />} />
       {!activeStory && <EmptyManuscripts />}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {characters.map((c) => (
