@@ -8,6 +8,13 @@
       "when": 1791875353650,
       "tag": "0000_create_writer_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792133599305,
+      "tag": "0001_cloud_manuscripts",
+      "breakpoints": true
     }
   ]
 }
