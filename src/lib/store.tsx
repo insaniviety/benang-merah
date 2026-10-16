@@ -332,7 +332,13 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const addCharacter: StoreValue["addCharacter"] = useCallback(
     (c, relationship) => {
-      if (!stories.some((story) => story.id === activeStoryId)) return;
+      let storyId = activeStoryId;
+      if (!stories.some((story) => story.id === storyId)) {
+        const story: Story = { id: uid(), title: dictionaries[lang].autoStoryTitle, genres: [], language: lang, synopsis: "", updatedAt: new Date().toISOString(), chapters: [], content: "" };
+        setStories((prev) => [story, ...prev]);
+        setActiveStoryIdRaw(story.id);
+        storyId = story.id;
+      }
       const id = uid();
       setCharacters((prev) => [
         ...prev,
