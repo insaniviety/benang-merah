@@ -9,6 +9,8 @@ import { needsEditorConfirmation } from "./editor-save";
 import { emptyWorkspace, cleanLegacyPresets, removeManuscripts } from "./workspace-lifecycle";
 import type { WriterAccount } from "@/components/AccountGate";
 import { accountCopy } from "./account-copy";
+import { supabase } from "@/integrations/supabase/client";
+import { applyBundle, bundleFor } from "./cloud-sync";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -121,6 +123,9 @@ interface StoreValue {
   setNewStoryOpen: (v: boolean) => void;
   user: AuthUser | null;
   signOut: () => Promise<void>;
+  cloudStoryIds: string[];
+  cloudStatus: "idle" | "syncing" | "synced" | "error";
+  setCloudSync: (storyId: string, enabled: boolean) => Promise<void>;
 }
 
 // Keep one context instance across hot reloads so provider and consumers always match.
@@ -138,6 +143,9 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [savingSwitch, setSavingSwitch] = useState(false);
   const [switchError, setSwitchError] = useState(false);
   const [unconfirmedStoryIds, setUnconfirmedStoryIds] = useState<string[]>([]);
+  const [cloudStoryIds, setCloudStoryIds] = useState<string[]>([]);
+  const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>("idle");
+  const pushed = useRef<Record<string, string>>({});
   const [allCharacters, setCharacters] = useState<Character[]>([]);
   const [allRelations, setRelations] = useState<Relation[]>([]);
   const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
@@ -154,7 +162,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
-    setUnconfirmedStoryIds(data.unconfirmedStoryIds);
+    setUnconfirmedStoryIds(data.unconfirmedStoryIds); setCloudStoryIds(data.cloudStoryIds);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
     setTimelines(data.timelines); setNotes(data.notes); setTheme(data.theme); setLangState(data.lang);
@@ -179,6 +187,14 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
           data = cleanLegacyPresets(data);
           await writeLocalData(data);
         }
+        try {
+          const { data: rows, error } = await supabase.from("cloud_manuscripts").select("story_id, bundle");
+          if (!error && rows?.length) {
+            const merged = rows.reduce((acc, row) => applyBundle(acc, row.bundle), data);
+            for (const row of rows) { const b = bundleFor(merged, row.story_id); if (b) pushed.current[row.story_id] = JSON.stringify(b); }
+            if (merged !== data) { data = merged; await writeLocalData(data); }
+          }
+        } catch { /* offline: keep the local copy */ }
         if (mounted) { applyData(data); setCanvasReady(true); setHydrated(true); setStorageStatus("saved"); }
         navigator.storage?.persist?.().catch(() => undefined);
       } catch { if (mounted) setStorageStatus("error"); }
@@ -198,8 +214,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, writerName, presetsCleaned: true,
-  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, writerName]);
+    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName, presetsCleaned: true,
+  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName]);
   useEffect(() => {
     if (!hydrated) return;
     const version = ++revision.current;
@@ -208,6 +224,45 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       if (revision.current === version) setStorageStatus("saved");
     }).catch(() => { if (revision.current === version) setStorageStatus("error"); });
   }, [data, hydrated, writeLocalData]);
+  const pushCloud = useCallback(async (source: LocalData, ids: string[]) => {
+    const rows = ids.flatMap((id) => {
+      const bundle = bundleFor(source, id);
+      if (!bundle) return [];
+      const json = JSON.stringify(bundle);
+      return pushed.current[id] === json ? [] : [{ id, json, bundle }];
+    });
+    if (!rows.length) return;
+    setCloudStatus("syncing");
+    const { error } = await supabase.from("cloud_manuscripts").upsert(
+      rows.map((row) => ({ user_id: account.id, story_id: row.id, bundle: row.bundle as never, updated_at: new Date().toISOString() })),
+    );
+    if (error) { setCloudStatus("error"); return; }
+    for (const row of rows) pushed.current[row.id] = row.json;
+    setCloudStatus("synced");
+  }, [account.id]);
+  useEffect(() => {
+    if (!hydrated || !cloudStoryIds.length) return;
+    const timer = setTimeout(() => { void pushCloud(data, cloudStoryIds).catch(() => setCloudStatus("error")); }, 2000);
+    return () => clearTimeout(timer);
+  }, [data, cloudStoryIds, hydrated, pushCloud]);
+  useEffect(() => {
+    const retry = () => { void pushCloud(data, cloudStoryIds).catch(() => setCloudStatus("error")); };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [data, cloudStoryIds, pushCloud]);
+  const setCloudSync = useCallback(async (storyId: string, enabled: boolean) => {
+    if (enabled) {
+      setCloudStoryIds((prev) => prev.includes(storyId) ? prev : [...prev, storyId]);
+      await pushCloud(data, [storyId]);
+    } else {
+      setCloudStatus("syncing");
+      const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", storyId);
+      if (error) { setCloudStatus("error"); throw error; }
+      delete pushed.current[storyId];
+      setCloudStoryIds((prev) => prev.filter((id) => id !== storyId));
+      setCloudStatus("synced");
+    }
+  }, [data, pushCloud]);
   const exportBackup = useCallback(async () => {
     await writeLocalData(data);
     return makeBackup(data);
@@ -221,7 +276,12 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   }, [applyData, writerName, writeLocalData]);
   const deleteStory = useCallback(async (id: string) => {
     if (!data.stories.some((story) => story.id === id)) return;
-    const next = removeManuscripts(data, new Set([id]));
+    if (data.cloudStoryIds.includes(id)) {
+      const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", id);
+      if (error) throw error;
+      delete pushed.current[id];
+    }
+    const next = { ...removeManuscripts(data, new Set([id])), cloudStoryIds: data.cloudStoryIds.filter((x) => x !== id) };
     ++revision.current;
     setStorageStatus("saving");
     try {
@@ -394,6 +454,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       toggleTheme,
       lang,
       setLang,
+      cloudStoryIds, cloudStatus, setCloudSync,
       t: dictionaries[lang],
       stories,
       activeStory: stories.find((s) => s.id === activeStoryId),
