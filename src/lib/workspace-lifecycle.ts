@@ -3,7 +3,7 @@ import type { LocalData } from "./local-data";
 export function emptyWorkspace(): LocalData {
   return { stories: [], activeStoryId: "", characters: [], relations: [], savedCanvases: {},
     timelines: {}, notes: [], user: null, writerName: null, presetsCleaned: true,
-    theme: "dark", lang: "id", unconfirmedStoryIds: [] };
+    theme: "dark", lang: "id", unconfirmedStoryIds: [], cloudStoryIds: [] };
 }
 
 export function removeManuscripts(data: LocalData, ids: Set<string>): LocalData {
@@ -15,6 +15,7 @@ export function removeManuscripts(data: LocalData, ids: Set<string>): LocalData 
     savedCanvases: Object.fromEntries(Object.entries(data.savedCanvases).filter(([id]) => !ids.has(id))),
     timelines: Object.fromEntries(Object.entries(data.timelines).filter(([id]) => !ids.has(id))),
     unconfirmedStoryIds: data.unconfirmedStoryIds.filter((id) => !ids.has(id)),
+    cloudStoryIds: (data.cloudStoryIds ?? []).filter((id) => !ids.has(id)),
   };
 }
 
