@@ -11,6 +11,8 @@ import { getGenreLabel } from "@/lib/i18n";
 import { BackupControls } from "@/components/BackupControls";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { workspaceCopy } from "@/lib/workspace-copy";
+import { cloudCopy } from "@/lib/cloud-copy";
+import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
@@ -29,7 +31,8 @@ export const Route = createFileRoute("/library")({
 });
 
 function Library() {
-  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen, deleteStory } = useStore();
+  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen, deleteStory, cloudStoryIds, cloudStatus, setCloudSync } = useStore();
+  const cc = cloudCopy[lang];
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -69,6 +72,12 @@ function Library() {
                 <div className="flex items-center gap-1.5"><Layers className="size-3.5" /> {s.chapters.length} {t.chapters}</div>
                 <div className="flex items-center gap-1.5"><CalendarDays className="size-3.5" /> {t.updated} {fmt.format(new Date(s.updatedAt))}</div>
               </dl>
+              <div className="mt-4 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs" title={cc.hint}>
+                <span className={cn(cloudStoryIds.includes(s.id) ? "text-thread" : "text-muted-foreground")}>
+                  {cloudStoryIds.includes(s.id) ? `${cc.on} · ${cloudStatus === "syncing" ? cc.syncing : cloudStatus === "error" ? cc.error : cc.synced}` : cc.off}
+                </span>
+                <Switch aria-label={cc.label} checked={cloudStoryIds.includes(s.id)} onCheckedChange={(v) => { void setCloudSync(s.id, v).catch(() => undefined); }} />
+              </div>
               <div className="mt-4 flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setEditingId(s.id)}><Pencil className="size-4" /> {t.edit}</Button>
                 <TooltipProvider><Tooltip><TooltipTrigger asChild>
