@@ -15,3 +15,30 @@ test("older cloud copy never overwrites newer local edits", () => {
   const old = { ...emptyWorkspace(), stories: [{ ...story("a", "2026-01-01"), content: "old" }], activeStoryId: "a" };
   expect(applyBundle(local, bundleFor(old, "a")).stories[0].content).toBe("new");
 });
+import { bundleHash, reconcileCloud } from "./cloud-sync";
+const ch = (id, name) => ({ id, storyId: "a", name, role: "supporting", identity: "", diction: "", status: "active", hue: 0, bio: "", x: 0, y: 0 });
+test("character edits from another device load when this device has no unsynced edits", () => {
+  const base = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", cloudStoryIds: ["a"] };
+  const local = { ...base, cloudSynced: { a: bundleHash(bundleFor(base, "a")) } };
+  const remote = { ...base, characters: [ch("c1", "Lin")] };
+  const merged = reconcileCloud(local, [{ story_id: "a", bundle: bundleFor(remote, "a") }]);
+  expect(merged.characters.map((c) => c.name)).toEqual(["Lin"]);
+  expect(merged.cloudSynced.a).toBe(bundleHash(bundleFor(merged, "a")));
+});
+test("unsynced local character edits are kept and not marked synced", () => {
+  const base = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", cloudStoryIds: ["a"] };
+  const local = { ...base, characters: [ch("c2", "Mei")], cloudSynced: { a: bundleHash(bundleFor(base, "a")) } };
+  const merged = reconcileCloud(local, [{ story_id: "a", bundle: bundleFor(base, "a") }]);
+  expect(merged.characters.map((c) => c.name)).toEqual(["Mei"]);
+  expect(merged.cloudSynced.a).not.toBe(bundleHash(bundleFor(merged, "a")));
+});
+test("manuscript deleted in the cloud elsewhere stops syncing here instead of being re-uploaded", () => {
+  const base = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", cloudStoryIds: ["a"] };
+  const merged = reconcileCloud({ ...base, cloudSynced: { a: "x" } }, []);
+  expect(merged.cloudStoryIds).toEqual([]);
+  expect(merged.stories.length).toBe(1);
+});
+test("newly switched-on manuscript not yet uploaded keeps syncing", () => {
+  const base = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", cloudStoryIds: ["a"] };
+  expect(reconcileCloud(base, []).cloudStoryIds).toEqual(["a"]);
+});

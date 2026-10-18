@@ -78,7 +78,6 @@ export function reconcileCloud(data: LocalData, rows: { story_id: string; bundle
     const localBundle = bundleFor(next, id);
     const clean = !localBundle || synced[id] === bundleHash(localBundle);
     const merged = applyBundle(next, parsed.data, clean);
-    if (merged === next && clean && localBundle) continue;
     next = merged;
     if (clean || bundleHash(bundleFor(next, id)) === bundleHash(parsed.data)) synced[id] = bundleHash(bundleFor(next, id));
   }

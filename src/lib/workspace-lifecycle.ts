@@ -3,7 +3,7 @@ import type { LocalData } from "./local-data";
 export function emptyWorkspace(): LocalData {
   return { stories: [], activeStoryId: "", characters: [], relations: [], savedCanvases: {},
     timelines: {}, notes: [], user: null, writerName: null, presetsCleaned: true,
-    theme: "dark", lang: "id", unconfirmedStoryIds: [], cloudStoryIds: [] };
+    theme: "dark", lang: "id", unconfirmedStoryIds: [], cloudStoryIds: [], cloudSynced: {} };
 }
 
 export function removeManuscripts(data: LocalData, ids: Set<string>): LocalData {
