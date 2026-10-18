@@ -10,7 +10,7 @@ import { emptyWorkspace, cleanLegacyPresets, removeManuscripts } from "./workspa
 import type { WriterAccount } from "@/components/AccountGate";
 import { accountCopy } from "./account-copy";
 import { supabase } from "@/integrations/supabase/client";
-import { applyBundle, bundleFor } from "./cloud-sync";
+import { bundleFor, bundleHash, reconcileCloud } from "./cloud-sync";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -145,7 +145,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [unconfirmedStoryIds, setUnconfirmedStoryIds] = useState<string[]>([]);
   const [cloudStoryIds, setCloudStoryIds] = useState<string[]>([]);
   const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>("idle");
-  const pushed = useRef<Record<string, string>>({});
+  const [cloudSynced, setCloudSynced] = useState<Record<string, string>>({});
   const [allCharacters, setCharacters] = useState<Character[]>([]);
   const [allRelations, setRelations] = useState<Relation[]>([]);
   const [savedCanvases, setSavedCanvases] = useState<Record<string, CanvasSnapshot>>({});
@@ -162,7 +162,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
   const applyData = useCallback((data: LocalData) => {
-    setUnconfirmedStoryIds(data.unconfirmedStoryIds); setCloudStoryIds(data.cloudStoryIds);
+    setUnconfirmedStoryIds(data.unconfirmedStoryIds); setCloudStoryIds(data.cloudStoryIds); setCloudSynced(data.cloudSynced);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
     setTimelines(data.timelines); setNotes(data.notes); setTheme(data.theme); setLangState(data.lang);
@@ -189,10 +189,9 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
         }
         try {
           const { data: rows, error } = await supabase.from("cloud_manuscripts").select("story_id, bundle");
-          if (!error && rows?.length) {
-            const merged = rows.reduce((acc, row) => applyBundle(acc, row.bundle), data);
-            for (const row of rows) { const b = bundleFor(merged, row.story_id); if (b) pushed.current[row.story_id] = JSON.stringify(b); }
-            if (merged !== data) { data = merged; await writeLocalData(data); }
+          if (!error && rows) {
+            const merged = reconcileCloud(data, rows);
+            if (JSON.stringify(merged) !== JSON.stringify(data)) { data = merged; await writeLocalData(data); }
           }
         } catch { /* offline: keep the local copy */ }
         if (mounted) { applyData(data); setCanvasReady(true); setHydrated(true); setStorageStatus("saved"); }
@@ -214,8 +213,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName, presetsCleaned: true,
-  }), [stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName]);
+    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, cloudStoryIds, cloudSynced, writerName, presetsCleaned: true,
+  }), [cloudSynced, stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName]);
   useEffect(() => {
     if (!hydrated) return;
     const version = ++revision.current;
@@ -228,8 +227,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
     const rows = ids.flatMap((id) => {
       const bundle = bundleFor(source, id);
       if (!bundle) return [];
-      const json = JSON.stringify(bundle);
-      return pushed.current[id] === json ? [] : [{ id, json, bundle }];
+      const json = bundleHash(bundle);
+      return source.cloudSynced[id] === json ? [] : [{ id, json, bundle }];
     });
     if (!rows.length) return;
     setCloudStatus("syncing");
@@ -237,7 +236,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       rows.map((row) => ({ user_id: account.id, story_id: row.id, bundle: row.bundle as never, updated_at: new Date().toISOString() })),
     );
     if (error) { setCloudStatus("error"); return; }
-    for (const row of rows) pushed.current[row.id] = row.json;
+    setCloudSynced((prev) => ({ ...prev, ...Object.fromEntries(rows.map((row) => [row.id, row.json])) }));
     setCloudStatus("synced");
   }, [account.id]);
   useEffect(() => {
@@ -258,7 +257,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       setCloudStatus("syncing");
       const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", storyId);
       if (error) { setCloudStatus("error"); throw error; }
-      delete pushed.current[storyId];
+      setCloudSynced((prev) => { const n = { ...prev }; delete n[storyId]; return n; });
       setCloudStoryIds((prev) => prev.filter((id) => id !== storyId));
       setCloudStatus("synced");
     }
@@ -279,9 +278,9 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
     if (data.cloudStoryIds.includes(id)) {
       const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", id);
       if (error) throw error;
-      delete pushed.current[id];
     }
-    const next = { ...removeManuscripts(data, new Set([id])), cloudStoryIds: data.cloudStoryIds.filter((x) => x !== id) };
+    const cloudSyncedNext = { ...data.cloudSynced }; delete cloudSyncedNext[id];
+    const next = { ...removeManuscripts(data, new Set([id])), cloudStoryIds: data.cloudStoryIds.filter((x) => x !== id), cloudSynced: cloudSyncedNext };
     ++revision.current;
     setStorageStatus("saving");
     try {
