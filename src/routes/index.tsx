@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getGenreLabel } from "@/lib/i18n";
 import { useMemo, useState } from "react";
 import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -32,7 +33,7 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
+  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
   const callGemini = useServerFn(analyzeWithGemini);
   const [consentOpen, setConsentOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
