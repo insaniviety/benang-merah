@@ -6,7 +6,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { LANGS, type Lang } from "@/lib/i18n";
+import { LANGS, getGenreLabel, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {stories.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 <span className="font-medium">{s.title}</span>
-                <span className="ml-2 text-xs text-muted-foreground">{s.genres.join(", ")}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{s.genres.map((g) => getGenreLabel(g, lang)).join(lang.startsWith("zh") ? "、" : ", ")}</span>
               </SelectItem>
             ))}
           </SelectContent>

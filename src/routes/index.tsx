@@ -150,7 +150,7 @@ function Dashboard() {
       {/* Editor */}
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3 text-sm">
-          <div className="flex flex-wrap gap-1">{activeStory.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{genre}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{activeStory.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{getGenreLabel(genre, lang)}</Badge>)}</div>
           <span className="font-display text-base">{activeStory.title}</span>
           {(() => { const ch = activeStory.chapters.find((c) => c.id === activeStory.activeChapterId); return <span className="text-muted-foreground">· {t.chapter} {ch?.number ?? 1}{ch ? ` — ${ch.title}` : ""}</span>; })()}
           <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
