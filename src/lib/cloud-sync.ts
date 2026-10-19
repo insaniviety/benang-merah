@@ -52,9 +52,18 @@ export function applyBundle(data: LocalData, raw: unknown, force = false): Local
   };
 }
 
+/** JSON with object keys sorted, so key order (spreads, schema parsing, database storage) never changes the result. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, (v as Record<string, unknown>)[k]]))
+      : v,
+  );
+}
+
 /** Stable fingerprint of a manuscript bundle, used to tell whether local edits are already in the cloud. */
 export function bundleHash(bundle: CloudBundle | null): string {
-  const text = JSON.stringify(bundle);
+  const text = canonicalJson(bundle);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return `${text.length}:${(h >>> 0).toString(36)}`;
