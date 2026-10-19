@@ -42,3 +42,14 @@ test("newly switched-on manuscript not yet uploaded keeps syncing", () => {
   const base = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", cloudStoryIds: ["a"] };
   expect(reconcileCloud(base, []).cloudStoryIds).toEqual(["a"]);
 });
+test("reloading reorders object keys but a clean device still takes the newer cloud characters", () => {
+  const s = { content: "", chapters: [], updatedAt: "2026-01-01", synopsis: "", language: "id", genres: [], title: "a", id: "a" };
+  const base = { ...emptyWorkspace(), stories: [s], activeStoryId: "a", cloudStoryIds: ["a"] };
+  const syncedHash = bundleHash(bundleFor(base, "a"));
+  const reloaded = { ...base, stories: [story("a", "2026-01-01")], cloudSynced: { a: syncedHash } };
+  expect(bundleHash(bundleFor(reloaded, "a"))).toBe(syncedHash);
+  const remote = { ...reloaded, characters: [ch("c9", "Yun")] };
+  const merged = reconcileCloud(reloaded, [{ story_id: "a", bundle: bundleFor(remote, "a") }]);
+  expect(merged.characters.map((c) => c.name)).toEqual(["Yun"]);
+  expect(merged.cloudSynced.a).toBe(bundleHash(bundleFor(merged, "a")));
+});
