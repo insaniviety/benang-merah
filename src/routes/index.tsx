@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getGenreLabel } from "@/lib/i18n";
 import { useMemo, useState } from "react";
 import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -32,7 +33,7 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
+  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
   const callGemini = useServerFn(analyzeWithGemini);
   const [consentOpen, setConsentOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
@@ -150,7 +151,7 @@ function Dashboard() {
       {/* Editor */}
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3 text-sm">
-          <div className="flex flex-wrap gap-1">{activeStory.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{genre}</Badge>)}</div>
+          <div className="flex flex-wrap gap-1">{activeStory.genres.map((genre) => <Badge key={genre} variant="outline" className="border-thread/40 text-thread">{getGenreLabel(genre, lang)}</Badge>)}</div>
           <span className="font-display text-base">{activeStory.title}</span>
           {(() => { const ch = activeStory.chapters.find((c) => c.id === activeStory.activeChapterId); return <span className="text-muted-foreground">· {t.chapter} {ch?.number ?? 1}{ch ? ` — ${ch.title}` : ""}</span>; })()}
           <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
