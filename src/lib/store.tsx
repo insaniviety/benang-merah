@@ -194,6 +194,11 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
             if (JSON.stringify(merged) !== JSON.stringify(data)) { data = merged; await writeLocalData(data); }
           }
         } catch { /* offline: keep the local copy */ }
+        try {
+          const { data: profile } = await supabase.from("profiles").select("ui_lang").eq("id", account.id).maybeSingle();
+          const saved = profile?.ui_lang;
+          if (saved && saved in dictionaries && saved !== data.lang) { data = { ...data, lang: saved as Lang }; await writeLocalData(data); }
+        } catch { /* offline: keep the device language */ }
         if (mounted) { applyData(data); setCanvasReady(true); setHydrated(true); setStorageStatus("saved"); }
         navigator.storage?.persist?.().catch(() => undefined);
       } catch { if (mounted) setStorageStatus("error"); }
@@ -301,7 +306,11 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   }, []);
 
   const toggleTheme = useCallback(() => setTheme((t) => (t === "dark" ? "light" : "dark")), []);
-  const setLang = useCallback((l: Lang) => setLangState(l), []);
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    // Remember the UI language on the account so it follows the writer after signing in again.
+    void supabase.from("profiles").update({ ui_lang: l }).eq("id", account.id).then(() => undefined, () => undefined);
+  }, [account.id]);
 
   const requestSwitch = useCallback((run: () => void) => {
     if (needsEditorConfirmation(unconfirmedStoryIds, activeStoryId, storageStatus)) {
