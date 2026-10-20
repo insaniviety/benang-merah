@@ -14,6 +14,7 @@ import { parseBackup } from "@/lib/local-data";
 import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
+import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship"; body: string; source: string; chapterId?: string | undefined; paragraphIndex?: number | undefined; suggestion?: string | undefined };
+type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship" | AiMode; body: string; source: string; chapterId?: string | undefined; paragraphIndex?: number | undefined; suggestion?: string | undefined };
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
@@ -42,6 +43,7 @@ function Dashboard() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [previewing, setPreviewing] = useState<Alert | null>(null);
+  const [modes, setModes] = useState<AiMode[]>([]);
 
   const alerts = useMemo<Alert[]>(() => {
     if (!activeStory) return [];
@@ -128,7 +130,7 @@ function Dashboard() {
     setAnalyzing(true);
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
-      const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true) });
+      const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes) });
       if (!result.ok) { toast.error(result.error); return; }
       setAiResult({ signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) });
       setDismissed([]); setConsentOpen(false);
@@ -214,10 +216,10 @@ function Dashboard() {
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
-          {(["chronology", "text", "world", "relationship"] as const).map((kind) => {
+          {(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing"] as const).map((kind) => {
             const group = visible.filter((alert) => alert.kind === kind);
             if (!group.length) return null;
-            const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : t.alertRelationship;
+            const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][kind];
             return <section key={kind} className="space-y-3" aria-label={heading}>
               <h3 className="pt-2 text-xs font-semibold uppercase text-muted-foreground">{heading} <span className="ml-1">{group.length}</span></h3>
               {group.map((a) => <AlertCard key={a.id} a={a} canApply={a.chapterId === activeStory.activeChapterId && a.paragraphIndex !== undefined} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
@@ -225,7 +227,7 @@ function Dashboard() {
           })}
         </div>
       </aside>
-      <GeminiConsentDialog open={consentOpen} busy={analyzing} onClose={() => setConsentOpen(false)} onConfirm={() => void checkPlotHoles()} />
+      <GeminiConsentDialog open={consentOpen} busy={analyzing} onClose={() => setConsentOpen(false)} onConfirm={() => void checkPlotHoles()} modes={modes} onModesChange={setModes} />
       <AiPreviewDialog
         open={!!previewing}
         onOpenChange={(v) => !v && setPreviewing(null)}
@@ -239,12 +241,15 @@ function Dashboard() {
 }
 
 function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: boolean; onApply: () => void; onDismiss: () => void }) {
-  const { t } = useStore();
+  const { t, lang } = useStore();
   const styles = {
     chronology: { icon: Clock3, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
     text: { icon: AlertTriangle, ring: "border-warning/50", chip: "bg-warning/20 text-warning" },
     world: { icon: UserX, ring: "border-info/50", chip: "bg-info/20 text-info" },
     relationship: { icon: Link2, ring: "border-thread/50", chip: "bg-thread/20 text-thread" },
+    diction: { icon: BookUser, ring: "border-info/50", chip: "bg-info/20 text-info" },
+    atmosphere: { icon: FileText, ring: "border-warning/50", chip: "bg-warning/20 text-warning" },
+    pacing: { icon: Clock3, ring: "border-thread/50", chip: "bg-thread/20 text-thread" },
   }[a.kind];
   const Icon = styles.icon;
   return (
@@ -255,7 +260,7 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-             <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : a.kind === "world" ? t.alertWorld : t.alertRelationship}</Badge>
+             <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : a.kind === "world" ? t.alertWorld : a.kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][a.kind]}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
            <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>
