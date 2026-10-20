@@ -23,3 +23,8 @@ test("Timeline update sends latest chapters and existing draft, not the saved re
   expect(input.timeline).toEqual([event]);
   expect(input.story.chapters[0].content).toBe("Latest text");
 });
+test("extra review modes are sent only for the plot hole checker", () => {
+  expect(selectedStoryInput(data, "one", "inspector", true, ["diction", "pacing"]).modes).toEqual(["diction", "pacing"]);
+  expect(selectedStoryInput(data, "one", "timeline", true, ["diction"]).modes).toEqual([]);
+  expect(selectedStoryInput(data, "one", "inspector", true).modes).toEqual([]);
+});
