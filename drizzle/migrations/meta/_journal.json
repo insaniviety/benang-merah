@@ -15,6 +15,13 @@
       "when": 1792133599305,
       "tag": "0001_cloud_manuscripts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792508265521,
+      "tag": "0002_profile_ui_lang",
+      "breakpoints": true
     }
   ]
 }
