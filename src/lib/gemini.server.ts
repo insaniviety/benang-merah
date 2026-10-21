@@ -29,15 +29,27 @@ export async function runGemini(input: GeminiInput, key: string): Promise<Gemini
         generationConfig: { responseMimeType: "application/json", responseJsonSchema: { type: "object", properties, required: ["events", "findings"] } },
       }),
     });
-    if (!response.ok) return { ok: false, error: `Gemini (${response.status}): ${response.status === 429 ? "Kuota/batas permintaan Google tercapai / Google quota or rate limit reached." : response.status === 401 || response.status === 403 ? "Periksa izin kunci Gemini / Check Gemini key permissions." : "Permintaan tidak dapat diproses / The request could not be processed."}` };
+    if (!response.ok) {
+      let detail = "";
+      try { const body = await response.json() as { error?: { status?: string; message?: string } }; detail = [body.error?.status, body.error?.message].filter(Boolean).join(" — ").slice(0, 400); } catch { /* no JSON body */ }
+      const hint = response.status === 429 ? "Kuota/batas permintaan Google tercapai / Google quota or rate limit reached."
+        : response.status === 401 || response.status === 403 ? "Periksa izin kunci Gemini / Check Gemini key permissions."
+        : response.status === 503 ? "Server Google sedang penuh, coba lagi beberapa menit / Google servers are overloaded, try again in a few minutes."
+        : response.status >= 500 ? "Gangguan di server Google / Google server error."
+        : "Permintaan ditolak Google / Google rejected the request.";
+      return { ok: false, error: `Gemini HTTP ${response.status}: ${hint}${detail ? ` (${detail})` : ""}` };
+    }
     const value = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; promptFeedback?: { blockReason?: string } };
     const candidate = value.candidates?.[0];
-    if (value.promptFeedback?.blockReason || !candidate || candidate.finishReason !== "STOP") return { ok: false, error: "Gemini tidak menghasilkan jawaban lengkap / Gemini did not return a complete answer." };
+    if (value.promptFeedback?.blockReason || !candidate || candidate.finishReason !== "STOP") return { ok: false, error: `Gemini tidak menghasilkan jawaban lengkap / Gemini did not return a complete answer (${value.promptFeedback?.blockReason ? `blocked: ${value.promptFeedback.blockReason}` : `finishReason: ${candidate?.finishReason ?? "none"}`}).` };
     const text = candidate.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
     const parsed = geminiOutputSchema.safeParse(JSON.parse(text));
     if (!parsed.success) return { ok: false, error: "Format jawaban Gemini tidak valid / Gemini returned an invalid result." };
     return { ok: true, output: parsed.data };
-  } catch {
-    return { ok: false, error: "Koneksi Gemini gagal / Could not connect to Gemini." };
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    if (name === "TimeoutError") return { ok: false, error: "Gemini tidak menjawab dalam 60 detik / Gemini did not answer within 60 seconds (timeout)." };
+    if (error instanceof SyntaxError) return { ok: false, error: "Jawaban Gemini bukan JSON yang valid / Gemini returned malformed JSON." };
+    return { ok: false, error: `Koneksi Gemini gagal / Could not connect to Gemini${name ? ` (${name})` : ""}.` };
   }
 }
