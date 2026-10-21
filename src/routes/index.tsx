@@ -43,6 +43,7 @@ function Dashboard() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [previewing, setPreviewing] = useState<Alert | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [modes, setModes] = useState<AiMode[]>([]);
 
   const alerts = useMemo<Alert[]>(() => {
@@ -127,14 +128,14 @@ function Dashboard() {
   const previewSuggestion = previewing?.suggestion ?? previewOriginal;
   const checkPlotHoles = async () => {
     if (analyzing) return;
-    setAnalyzing(true);
+    setAnalyzing(true); setAiError(null);
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
       const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes) });
-      if (!result.ok) { toast.error(result.error); return; }
+      if (!result.ok) { setAiError(result.error); setConsentOpen(false); return; }
       setAiResult({ signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) });
       setDismissed([]); setConsentOpen(false);
-    } catch { toast.error(t.timelineGenerateError); }
+    } catch (error) { setAiError(`${t.timelineGenerateError}${error instanceof Error && error.message ? ` (${error.message})` : ""}`); setConsentOpen(false); }
     finally { setAnalyzing(false); }
   };
   const insert = (text: string) => {
@@ -213,6 +214,9 @@ function Dashboard() {
           </div>)}
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4 scrollbar-thin">
+          {aiError && <div role="alert" className="rounded-xl border border-destructive/50 bg-destructive/10 p-3 text-xs leading-relaxed text-destructive">
+            <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><p className="flex-1 break-words">{aiError}</p><button aria-label={t.ignore} onClick={() => setAiError(null)}><X className="size-3.5" /></button></div>
+          </div>}
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
