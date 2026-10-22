@@ -55,10 +55,11 @@ function Dashboard() {
   useEffect(() => { setAiSettingsState(readAiSettings(accountId)); }, [accountId]);
   const storyId = activeStory?.id;
   useEffect(() => {
-    if (!storyId) return;
+    if (!storyId) return undefined;
     const s = readAiSettings(accountId);
     setAiResult(s.persist === "account" ? readAiResult(accountId, storyId) : null);
     if (s.persist === "cloud") { let live = true; readCloudAiResult<{ signature: string; findings: Alert[] }>(storyId).then((r) => { if (live) setAiResult(r); }, () => undefined); return () => { live = false; }; }
+    return undefined;
   }, [accountId, storyId]);
   const updateAiSettings = (next: AiSettings) => {
     setAiSettingsState(next); writeAiSettings(accountId, next);
