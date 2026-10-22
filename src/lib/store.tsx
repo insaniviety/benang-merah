@@ -92,6 +92,7 @@ interface StoreValue {
   addStory: (s: Omit<Story, "id" | "updatedAt" | "chapters" | "content">) => void;
   deleteStory: (id: string) => Promise<void>;
   writerName: string | null;
+  accountId: string;
   updateStory: (id: string, patch: Pick<Story, "title" | "genres" | "language" | "synopsis">) => void;
   updateContent: (id: string, content: string) => void;
   editorDirty: boolean;
@@ -468,7 +469,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       activeStory: stories.find((s) => s.id === activeStoryId),
       setActiveStoryId,
       addStory,
-      updateStory, deleteStory, writerName,
+      updateStory, deleteStory, writerName, accountId: account.id,
       updateContent,
       editorDirty: unconfirmedStoryIds.includes(activeStoryId),
       saveEditor,
@@ -495,7 +496,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       user,
       signOut,
     }),
-    [deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signOut, cloudStoryIds, cloudStatus, setCloudSync],
+    [account.id, deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signOut, cloudStoryIds, cloudStatus, setCloudSync],
   );
 
   return <Ctx.Provider value={value}>
