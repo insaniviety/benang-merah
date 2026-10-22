@@ -152,7 +152,9 @@ function Dashboard() {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
       const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes) });
       if (!result.ok) { setAiError(result.error); setConsentOpen(false); return; }
-      setAiResult({ signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) });
+      const next = { signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) };
+      setAiResult(next);
+      if (aiSettings.persist === "account") writeAiResult(accountId, activeStory.id, next);
       setDismissed([]); setConsentOpen(false);
     } catch (error) { setAiError(`${t.timelineGenerateError}${error instanceof Error && error.message ? ` (${error.message})` : ""}`); setConsentOpen(false); }
     finally { setAnalyzing(false); }
@@ -213,11 +215,21 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground">{t.inspectorSub}</p>
           </div>
           <Button
-             size="sm" variant="outline" aria-label={t.analyze} disabled={analyzing}
+             size="sm" variant="outline" aria-label={t.analyze} disabled={analyzing || !aiSettings.enabled}
              onClick={() => setConsentOpen(true)}
           >
             <RefreshCw className={cn("size-4", analyzing && "animate-spin")} />{t.analyze}
           </Button>
+          <Popover><PopoverTrigger asChild><Button size="icon" variant="ghost" className="size-8" aria-label={sc.title}><Settings2 className="size-4" /></Button></PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-4 text-sm">
+              <p className="font-display font-semibold">{sc.title}</p>
+              <label className="flex items-center justify-between gap-3"><span>{sc.enable}</span><Switch checked={aiSettings.enabled} onCheckedChange={(enabled) => updateAiSettings({ ...aiSettings, enabled })} /></label>
+              <fieldset className="space-y-2"><legend className="mb-1 text-xs font-medium text-muted-foreground">{sc.store}</legend>
+                {(["session", "account"] as const).map((p) => <label key={p} className="flex items-center gap-2"><input type="radio" name="ai-persist" className="accent-primary" checked={aiSettings.persist === p} onChange={() => updateAiSettings({ ...aiSettings, persist: p })} />{sc[p]}</label>)}
+              </fieldset>
+            </PopoverContent>
+          </Popover>
+          {!aiSettings.enabled && <p className="w-full text-xs text-muted-foreground">{sc.disabled}</p>}
         </div>
         <div className="grid gap-2 border-b px-5 py-4 text-xs" aria-label="Sumber acuan pemeriksaan">
           {([
