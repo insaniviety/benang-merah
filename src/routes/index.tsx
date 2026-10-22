@@ -140,7 +140,7 @@ function Dashboard() {
   if (!activeStory) return <div className="mx-auto max-w-6xl p-6 md:p-10"><h1 className="font-display text-3xl font-semibold">{t.libraryTitle}</h1><EmptyManuscripts /></div>;
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
-  const signature = JSON.stringify([activeStory, characters, savedCanvas, timeline]);
+  const signature = hashText(JSON.stringify([activeStory.chapters.map((c) => [c.id, c.content]), characters, savedCanvas, timeline]));
   const currentAlerts = aiResult?.signature === signature ? aiResult.findings : alerts;
   const visible = currentAlerts.filter((a) => !dismissed.includes(a.id));
 
@@ -311,3 +311,6 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
     </div>
   );
 }
+
+// Compact fingerprint so saved results never carry the manuscript text itself.
+function hashText(text: string) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + text.length.toString(36); }
