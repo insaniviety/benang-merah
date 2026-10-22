@@ -27,3 +27,4 @@
 - Allow one-time legacy local collection adoption only by explicit confirmation using an atomic IndexedDB ownership claim; this preserves existing work without sharing it between accounts.
 - Require an existing manuscript for character creation and canvas saving, validate workspace writes, and repair only legacy empty-story-ID records on local reads; this prevents orphaned data from blocking workspace restoration without discarding unrelated work.
 - Sync opted-in manuscripts as one owner-only per-story bundle row, merged by story updatedAt so a newer local copy is never overwritten; notes and unselected manuscripts never leave the device.
+- Sync Plot Hole results to the cloud only when the writer picks the account-sync option, storing findings plus a hashed fingerprint (never manuscript text); switching away deletes cloud copies.

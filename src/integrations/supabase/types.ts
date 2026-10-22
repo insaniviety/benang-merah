@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_results: {
+        Row: {
+          result: Json
+          story_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          result: Json
+          story_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          result?: Json
+          story_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cloud_manuscripts: {
         Row: {
           bundle: Json

@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { Settings2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, type AiSettings } from "@/lib/ai-settings";
+import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, type AiSettings } from "@/lib/ai-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -55,14 +55,17 @@ function Dashboard() {
   useEffect(() => { setAiSettingsState(readAiSettings(accountId)); }, [accountId]);
   const storyId = activeStory?.id;
   useEffect(() => {
-    if (!storyId) return;
+    if (!storyId) return undefined;
     const s = readAiSettings(accountId);
     setAiResult(s.persist === "account" ? readAiResult(accountId, storyId) : null);
+    if (s.persist === "cloud") { let live = true; readCloudAiResult<{ signature: string; findings: Alert[] }>(storyId).then((r) => { if (live) setAiResult(r); }, () => undefined); return () => { live = false; }; }
+    return undefined;
   }, [accountId, storyId]);
   const updateAiSettings = (next: AiSettings) => {
     setAiSettingsState(next); writeAiSettings(accountId, next);
-    if (next.persist === "session") clearAiResults(accountId);
-    else if (aiResult && storyId) writeAiResult(accountId, storyId, aiResult);
+    if (next.persist !== "account") clearAiResults(accountId);
+    if (next.persist !== "cloud" && aiSettings.persist === "cloud") void clearCloudAiResults(accountId).catch(() => undefined);
+    if (aiResult && storyId) { if (next.persist === "account") writeAiResult(accountId, storyId, aiResult); if (next.persist === "cloud") void writeCloudAiResult(accountId, storyId, aiResult).catch(() => undefined); }
   };
 
   const alerts = useMemo<Alert[]>(() => {
@@ -138,7 +141,7 @@ function Dashboard() {
   if (!activeStory) return <div className="mx-auto max-w-6xl p-6 md:p-10"><h1 className="font-display text-3xl font-semibold">{t.libraryTitle}</h1><EmptyManuscripts /></div>;
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
-  const signature = JSON.stringify([activeStory, characters, savedCanvas, timeline]);
+  const signature = hashText(JSON.stringify([activeStory.chapters.map((c) => [c.id, c.content]), characters, savedCanvas, timeline]));
   const currentAlerts = aiResult?.signature === signature ? aiResult.findings : alerts;
   const visible = currentAlerts.filter((a) => !dismissed.includes(a.id));
 
@@ -155,6 +158,7 @@ function Dashboard() {
       const next = { signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) };
       setAiResult(next);
       if (aiSettings.persist === "account") writeAiResult(accountId, activeStory.id, next);
+      if (aiSettings.persist === "cloud") void writeCloudAiResult(accountId, activeStory.id, next).catch(() => undefined);
       setDismissed([]); setConsentOpen(false);
     } catch (error) { setAiError(`${t.timelineGenerateError}${error instanceof Error && error.message ? ` (${error.message})` : ""}`); setConsentOpen(false); }
     finally { setAnalyzing(false); }
@@ -225,7 +229,7 @@ function Dashboard() {
               <p className="font-display font-semibold">{sc.title}</p>
               <label className="flex items-center justify-between gap-3"><span>{sc.enable}</span><Switch checked={aiSettings.enabled} onCheckedChange={(enabled) => updateAiSettings({ ...aiSettings, enabled })} /></label>
               <fieldset className="space-y-2"><legend className="mb-1 text-xs font-medium text-muted-foreground">{sc.store}</legend>
-                {(["session", "account"] as const).map((p) => <label key={p} className="flex items-center gap-2"><input type="radio" name="ai-persist" className="accent-primary" checked={aiSettings.persist === p} onChange={() => updateAiSettings({ ...aiSettings, persist: p })} />{sc[p]}</label>)}
+                {(["session", "account", "cloud"] as const).map((p) => <label key={p} className="flex items-center gap-2"><input type="radio" name="ai-persist" className="accent-primary" checked={aiSettings.persist === p} onChange={() => updateAiSettings({ ...aiSettings, persist: p })} />{sc[p]}</label>)}
               </fieldset>
             </PopoverContent>
           </Popover>
@@ -308,3 +312,6 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
     </div>
   );
 }
+
+// Compact fingerprint so saved results never carry the manuscript text itself.
+function hashText(text: string) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + text.length.toString(36); }
