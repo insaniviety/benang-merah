@@ -15,6 +15,11 @@ import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
+import { useEffect } from "react";
+import { Settings2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, type AiSettings } from "@/lib/ai-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,7 +39,7 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup } = useStore();
+  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup, accountId } = useStore();
   const callGemini = useServerFn(analyzeWithGemini);
   const [consentOpen, setConsentOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
@@ -45,6 +50,20 @@ function Dashboard() {
   const [previewing, setPreviewing] = useState<Alert | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [modes, setModes] = useState<AiMode[]>([]);
+  const [aiSettings, setAiSettingsState] = useState<AiSettings>(defaultAiSettings);
+  const sc = aiSettingsCopy[lang];
+  useEffect(() => { setAiSettingsState(readAiSettings(accountId)); }, [accountId]);
+  const storyId = activeStory?.id;
+  useEffect(() => {
+    if (!storyId) return;
+    const s = readAiSettings(accountId);
+    setAiResult(s.persist === "account" ? readAiResult(accountId, storyId) : null);
+  }, [accountId, storyId]);
+  const updateAiSettings = (next: AiSettings) => {
+    setAiSettingsState(next); writeAiSettings(accountId, next);
+    if (next.persist === "session") clearAiResults(accountId);
+    else if (aiResult && storyId) writeAiResult(accountId, storyId, aiResult);
+  };
 
   const alerts = useMemo<Alert[]>(() => {
     if (!activeStory) return [];
