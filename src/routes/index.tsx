@@ -15,7 +15,7 @@ import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
