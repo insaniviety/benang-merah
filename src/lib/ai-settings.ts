@@ -9,6 +9,7 @@ export function readAiSettings(accountId: string): AiSettings {
   return defaultAiSettings;
 }
 export function writeAiSettings(accountId: string, s: AiSettings) { localStorage.setItem(key(accountId), JSON.stringify(s)); }
+export function hasLocalAiSettings(accountId: string) { return localStorage.getItem(key(accountId)) !== null; }
 export function readAiResult<T>(accountId: string, storyId: string): T | null {
   try { return JSON.parse(localStorage.getItem(resultKey(accountId, storyId)) ?? "null"); } catch { return null; }
 }
@@ -25,6 +26,10 @@ export const aiSettingsCopy = {
 } as const;
 
 import { supabase } from "@/integrations/supabase/client";
+export async function hasCloudAiResults(): Promise<boolean> {
+  const { data } = await supabase.from("ai_results").select("story_id").limit(1);
+  return (data?.length ?? 0) > 0;
+}
 export async function readCloudAiResult<T>(storyId: string): Promise<T | null> {
   const { data } = await supabase.from("ai_results").select("result").eq("story_id", storyId).maybeSingle();
   return (data?.result as T) ?? null;

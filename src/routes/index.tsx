@@ -15,11 +15,11 @@ import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, type AiSettings } from "@/lib/ai-settings";
+import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, hasLocalAiSettings, hasCloudAiResults, type AiSettings } from "@/lib/ai-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -52,15 +52,31 @@ function Dashboard() {
   const [modes, setModes] = useState<AiMode[]>([]);
   const [aiSettings, setAiSettingsState] = useState<AiSettings>(defaultAiSettings);
   const sc = aiSettingsCopy[lang];
-  useEffect(() => { setAiSettingsState(readAiSettings(accountId)); }, [accountId]);
+  useEffect(() => {
+    setAiSettingsState(readAiSettings(accountId));
+    // New device: no local preference yet. Cloud rows only exist while "cloud" is chosen, so adopt it.
+    if (hasLocalAiSettings(accountId)) return undefined;
+    let live = true;
+    hasCloudAiResults().then((yes) => {
+      if (!live || !yes || hasLocalAiSettings(accountId)) return;
+      const next = { ...readAiSettings(accountId), persist: "cloud" as const };
+      writeAiSettings(accountId, next); setAiSettingsState(next);
+    }, () => undefined);
+    return () => { live = false; };
+  }, [accountId]);
   const storyId = activeStory?.id;
+  const persist = aiSettings.persist;
+  const lastStoryRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!storyId) return undefined;
-    const s = readAiSettings(accountId);
-    setAiResult(s.persist === "account" ? readAiResult(accountId, storyId) : null);
-    if (s.persist === "cloud") { let live = true; readCloudAiResult<{ signature: string; findings: Alert[] }>(storyId).then((r) => { if (live) setAiResult(r); }, () => undefined); return () => { live = false; }; }
-    return undefined;
-  }, [accountId, storyId]);
+    const storyChanged = lastStoryRef.current !== storyId;
+    lastStoryRef.current = storyId;
+    if (persist !== "cloud") { setAiResult(persist === "account" ? readAiResult(accountId, storyId) : storyChanged ? null : (prev) => prev); return undefined; }
+    if (storyChanged) setAiResult(null);
+    let live = true;
+    readCloudAiResult<{ signature: string; findings: Alert[] }>(storyId).then((r) => { if (live && r) setAiResult(r); }, () => undefined);
+    return () => { live = false; };
+  }, [accountId, storyId, persist]);
   const updateAiSettings = (next: AiSettings) => {
     setAiSettingsState(next); writeAiSettings(accountId, next);
     if (next.persist !== "account") clearAiResults(accountId);
