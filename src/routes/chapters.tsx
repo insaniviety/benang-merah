@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { aiFindingsTabCopy, readAiResult, readAiSettings, readCloudAiResult, readSessionAiResult } from "@/lib/ai-settings";
+import { aiModesCopy } from "@/lib/ai-modes-copy";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CheckCircle2, PenLine, Circle, RotateCcw, BookOpen, Pencil, Plus, ChevronDown, CalendarDays, Type } from "lucide-react";
 import { useStore, type Chapter, type ChapterStatus } from "@/lib/store";
@@ -26,11 +29,53 @@ export const Route = createFileRoute("/chapters")({
   component: Chapters,
 });
 
+type Finding = { id: string; kind: "chronology" | "text" | "world" | "relationship" | "diction" | "atmosphere" | "pacing"; body: string; source: string; chapterId?: string; suggestion?: string };
+
+function FindingsList({ findings, chapters, onOpen }: { findings: Finding[] | null; chapters: Chapter[]; onOpen: (chapterId: string) => void }) {
+  const { t, lang } = useStore();
+  const c = aiFindingsTabCopy[lang];
+  if (!findings?.length) return <p className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">{c.empty}</p>;
+  const kindLabel = (k: Finding["kind"]) => k === "chronology" ? t.alertChronology : k === "text" ? t.alertText : k === "world" ? t.alertWorld : k === "relationship" ? t.alertRelationship : aiModesCopy[lang][k];
+  const groups = [...chapters.map((ch) => ({ ch, items: findings.filter((f) => f.chapterId === ch.id) })), { ch: null, items: findings.filter((f) => !f.chapterId || !chapters.some((ch) => ch.id === f.chapterId)) }].filter((g) => g.items.length);
+  return (
+    <div className="space-y-6">
+      {groups.map(({ ch, items }) => (
+        <section key={ch?.id ?? "general"} className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg font-semibold">{ch ? `${t.chapter} ${ch.number} · ${ch.title}` : c.general}</h2>
+            {ch && <Button size="sm" variant="outline" onClick={() => onOpen(ch.id)}><Pencil /> {c.open}</Button>}
+          </div>
+          {items.map((f) => (
+            <article key={f.id} className="rounded-xl border bg-card p-4 shadow-soft">
+              <Badge variant="outline" className="whitespace-normal text-xs">{kindLabel(f.kind)}</Badge>
+              <p className="mt-2 text-sm leading-relaxed">{f.body}</p>
+              {f.suggestion && <p className="mt-2 rounded-md bg-muted p-2 text-sm"><span className="font-medium">{c.suggestion}:</span> {f.suggestion}</p>}
+              <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs text-muted-foreground">{t.alertSource}: {f.source}</p>
+            </article>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 type Filter = "all" | "draft" | "done" | "revision";
 
 function Chapters() {
-  const { t, lang, activeStory, updateChapter, openChapter } = useStore();
+  const { t, lang, activeStory, updateChapter, openChapter, accountId } = useStore();
   const navigate = useNavigate();
+  const [view, setView] = useState<"chapters" | "findings">("chapters");
+  const [findings, setFindings] = useState<Finding[] | null>(null);
+  const storyId = activeStory?.id;
+  useEffect(() => {
+    if (!storyId) return undefined;
+    let live = true;
+    const persist = readAiSettings(accountId).persist;
+    const local = readSessionAiResult<{ findings: Finding[] }>(accountId, storyId) ?? (persist === "account" ? readAiResult<{ findings: Finding[] }>(accountId, storyId) : null);
+    setFindings(local?.findings ?? null);
+    if (persist === "cloud") readCloudAiResult<{ findings: Finding[] }>(storyId).then((r) => { if (live && r) setFindings(r.findings); }, () => undefined);
+    return () => { live = false; };
+  }, [accountId, storyId]);
   const [filter, setFilter] = useState<Filter>("all");
   const [reading, setReading] = useState<Chapter | null>(null);
   const [adding, setAdding] = useState(false);
@@ -58,6 +103,16 @@ function Chapters() {
         action={<Button className="shadow-glow" onClick={() => setAdding(true)}><Plus /> {t.addChapter.replace(/^\+\s*/, "")}</Button>}
       />
 
+      <div role="tablist" className="flex gap-1 rounded-xl border bg-card p-1">
+        {(["chapters", "findings"] as const).map((v) => (
+          <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
+            className={cn("flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors", view === v ? "bg-thread text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground")}>
+            {aiFindingsTabCopy[lang][v]}{v === "findings" && findings ? <span className="ml-1 opacity-70">{findings.length}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      {view === "findings" ? <FindingsList findings={findings} chapters={chapters} onOpen={(id) => { openChapter(activeStory.id, id); navigate({ to: "/" }); }} /> : <>
       <div role="tablist" className="flex flex-wrap gap-2">
         {filters.map((f) => {
           const count = f.v === "all" ? chapters.length : chapters.filter((c) => c.status === f.v || (f.v === "draft" && c.status === "planned")).length;
@@ -137,6 +192,7 @@ function Chapters() {
           })}
         </ol>
       )}
+      </>}
 
       <Dialog open={!!reading} onOpenChange={(v) => !v && setReading(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">

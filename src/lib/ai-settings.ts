@@ -40,3 +40,15 @@ export async function writeCloudAiResult(accountId: string, storyId: string, val
 export async function clearCloudAiResults(accountId: string) {
   await supabase.from("ai_results").delete().eq("user_id", accountId);
 }
+
+// In-memory copy for "session only" results so other pages can show them this session.
+const sessionResults = new Map<string, unknown>();
+export function writeSessionAiResult(accountId: string, storyId: string, value: unknown) { sessionResults.set(`${accountId}:${storyId}`, value); }
+export function readSessionAiResult<T>(accountId: string, storyId: string): T | null { return (sessionResults.get(`${accountId}:${storyId}`) as T) ?? null; }
+
+export const aiFindingsTabCopy = {
+  id: { chapters: "Daftar Bab", findings: "Hasil Cek Plot Hole", empty: "Belum ada hasil Cek Plot Hole untuk naskah ini. Jalankan dari Inspector di Editor Utama.", general: "Umum", suggestion: "Saran", open: "Buka di Editor" },
+  en: { chapters: "Chapter list", findings: "Plot Hole results", empty: "No Plot Hole Check results for this manuscript yet. Run it from the Inspector in the Main Dashboard.", general: "General", suggestion: "Suggestion", open: "Open in editor" },
+  "zh-CN": { chapters: "章节列表", findings: "情节漏洞检查结果", empty: "这部书稿还没有情节漏洞检查结果。请在工作台的检查面板中运行。", general: "整体", suggestion: "建议", open: "在编辑器中打开" },
+  "zh-TW": { chapters: "章節列表", findings: "情節漏洞檢查結果", empty: "這部書稿還沒有情節漏洞檢查結果。請在工作台的檢查面板中執行。", general: "整體", suggestion: "建議", open: "在編輯器中開啟" },
+} as const;

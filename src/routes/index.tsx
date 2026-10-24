@@ -19,7 +19,7 @@ import { useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, hasLocalAiSettings, hasCloudAiResults, type AiSettings } from "@/lib/ai-settings";
+import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, hasLocalAiSettings, hasCloudAiResults, writeSessionAiResult, type AiSettings } from "@/lib/ai-settings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -190,7 +190,7 @@ function Dashboard() {
       const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes) });
       if (!result.ok) { setAiError(result.error); setConsentOpen(false); return; }
       const next = { signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) };
-      setAiResult(next);
+      setAiResult(next); writeSessionAiResult(accountId, activeStory.id, next);
       if (aiSettings.persist === "account") writeAiResult(accountId, activeStory.id, next);
       if (aiSettings.persist === "cloud") void writeCloudAiResult(accountId, activeStory.id, next).catch(() => undefined);
       setDismissed([]); setConsentOpen(false);
