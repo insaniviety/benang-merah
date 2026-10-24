@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getGenreLabel } from "@/lib/i18n";
 import { useMemo, useState } from "react";
-import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save } from "lucide-react";
+import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save, PenLine } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,9 @@ type Alert = { id: string; kind: "chronology" | "text" | "world" | "relationship
 type TimelineEvent = { id: string; time: string; era: string; event: string; location: string; characters: string[] };
 
 function Dashboard() {
-  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup, accountId } = useStore();
+  const { t, lang, activeStory, updateContent, characters, savedCanvas, timelines, storageStatus, editorDirty, saveEditor, exportBackup, accountId, openChapter } = useStore();
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const [revising, setRevising] = useState<Alert | null>(null);
   const callGemini = useServerFn(analyzeWithGemini);
   const [consentOpen, setConsentOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
@@ -48,6 +50,22 @@ function Dashboard() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [previewing, setPreviewing] = useState<Alert | null>(null);
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!revising || !el || !activeStory || revising.chapterId !== activeStory.activeChapterId || revising.paragraphIndex === undefined) return;
+    const parts = activeStory.content.split(/(\n\s*\n)/);
+    let start = 0;
+    for (let i = 0; i < revising.paragraphIndex * 2 && i < parts.length; i++) start += parts[i]!.length;
+    const para = parts[revising.paragraphIndex * 2] ?? "";
+    const lead = para.length - para.trimStart().length;
+    const from = start + lead, to = start + para.trimEnd().length;
+    setRevising(null);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(from, to);
+      el.blur(); el.focus();
+    });
+  }, [revising, activeStory]);
   const [aiError, setAiError] = useState<string | null>(null);
   const [modes, setModes] = useState<AiMode[]>([]);
   const [aiSettings, setAiSettingsState] = useState<AiSettings>(defaultAiSettings);
@@ -213,6 +231,7 @@ function Dashboard() {
             <h1 className="font-display text-3xl font-semibold md:text-4xl">{t.navDashboard}</h1>
             <h2 className="mb-8 mt-6 font-display text-2xl font-medium leading-tight md:text-3xl">{activeStory.title}</h2>
             <textarea
+              ref={editorRef}
               value={activeStory.content}
               onChange={(e) => updateContent(activeStory.id, e.target.value)}
               placeholder="…"
@@ -277,7 +296,7 @@ function Dashboard() {
             const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][kind];
             return <section key={kind} className="space-y-3" aria-label={heading}>
               <h3 className="pt-2 text-xs font-semibold uppercase text-muted-foreground">{heading} <span className="ml-1">{group.length}</span></h3>
-              {group.map((a) => <AlertCard key={a.id} a={a} canApply={a.chapterId === activeStory.activeChapterId && a.paragraphIndex !== undefined} onApply={() => setPreviewing(a)} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
+              {group.map((a) => <AlertCard key={a.id} a={a} canApply={a.chapterId === activeStory.activeChapterId && a.paragraphIndex !== undefined} onApply={() => setPreviewing(a)} canRevise={!!a.chapterId && a.paragraphIndex !== undefined && activeStory.chapters.some((c) => c.id === a.chapterId)} onRevise={() => { if (a.chapterId !== activeStory.activeChapterId) openChapter(activeStory.id, a.chapterId!); setRevising(a); }} onDismiss={() => setDismissed((d) => [...d, a.id])} />)}
             </section>;
           })}
         </div>
@@ -295,7 +314,7 @@ function Dashboard() {
   );
 }
 
-function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: boolean; onApply: () => void; onDismiss: () => void }) {
+function AlertCard({ a, canApply, onApply, canRevise, onRevise, onDismiss }: { a: Alert; canApply: boolean; onApply: () => void; canRevise: boolean; onRevise: () => void; onDismiss: () => void }) {
   const { t, lang } = useStore();
   const styles = {
     chronology: { icon: Clock3, ring: "border-destructive/40", chip: "bg-destructive/15 text-destructive" },
@@ -321,6 +340,7 @@ function AlertCard({ a, canApply, onApply, onDismiss }: { a: Alert; canApply: bo
            <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>
           <div className="mt-3 flex gap-2">
              {canApply && <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>}
+             {canRevise && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onRevise}><PenLine className="size-3" /> {({ id: "Revisi", en: "Revise", "zh-CN": "修订", "zh-TW": "修訂" } as const)[lang]}</Button>}
             <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={onDismiss}><X className="size-3" /> {t.ignore}</Button>
           </div>
         </div>
