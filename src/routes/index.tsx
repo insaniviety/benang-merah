@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getGenreLabel } from "@/lib/i18n";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, UserX, RefreshCw, Check, X, Bot, Clock3, BookUser, FileText, Link2, Save, PenLine } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
