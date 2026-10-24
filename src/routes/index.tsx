@@ -63,10 +63,7 @@ function Dashboard() {
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(from, to);
-      const line = parseFloat(getComputedStyle(el).lineHeight) || 28;
-      const before = el.value.slice(0, from).split("\n").length;
-      el.scrollIntoView({ block: "start", behavior: "smooth" });
-      window.scrollBy?.(0, before * line * 0.5);
+      el.blur(); el.focus();
     });
   }, [revising, activeStory]);
   const [aiError, setAiError] = useState<string | null>(null);
