@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start/server";
 import type { ConcreteProvider } from "./ai-routing";
 
-export type GeminiResult = { ok: true; output: GeminiOutput; provider?: ConcreteProvider; model?: string; attemptedProviders?: ConcreteProvider[]; runId?: string } | { ok: false; error: string; status?: number };
+export type GeminiResult = { ok: true; output: GeminiOutput; provider?: ConcreteProvider; model?: string; attemptedProviders?: ConcreteProvider[]; runId?: string | undefined } | { ok: false; error: string; status?: number | undefined };
 export const analyzeWithGemini = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((value: unknown) => {

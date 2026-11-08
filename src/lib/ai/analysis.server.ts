@@ -21,7 +21,7 @@ function safeFailure(error: unknown) {
   if (e?.cause && !e.statusCode) return safeFailureLeaf(e.cause);
   return safeFailureLeaf(error);
 }
-function safeFailureLeaf(error: unknown): { status?: number; message: string; retryAfter: number; terminal: boolean; persist: boolean } {
+function safeFailureLeaf(error: unknown): { status: number | undefined; message: string; retryAfter: number; terminal: boolean; persist: boolean } {
   const e = error as { statusCode?: number; responseBody?: string; message?: string; responseHeaders?: Record<string,string> };
   let body: { message?: string; error?: { message?: string; type?: string }; props?: { retryable?: boolean; requires?: string } } = {};
   try { body = JSON.parse(e?.responseBody ?? "{}"); } catch { /* no payload logging */ }

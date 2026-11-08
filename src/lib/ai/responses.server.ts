@@ -10,7 +10,7 @@ import {
 
 export function createResponsesCall(
   request: Request,
-  config: { baseURL: string; apiKey: string; model: string; runId?: string },
+  config: { baseURL: string; apiKey: string; model: string; runId?: string | undefined },
   messages: ModelMessage[],
   instructions?: string,
   schema?: z.ZodType,
