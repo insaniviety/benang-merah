@@ -16,7 +16,7 @@ import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
 import { useEffect, useRef } from "react";
-import { Settings2 } from "lucide-react";
+import { Settings2, Swords, Repeat } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, hasLocalAiSettings, hasCloudAiResults, writeSessionAiResult, type AiSettings } from "@/lib/ai-settings";
