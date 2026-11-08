@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getGenreLabel } from "@/lib/i18n";
 import { BackupControls } from "@/components/BackupControls";
+import { ManuscriptExport } from "@/components/ManuscriptExport";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { workspaceCopy } from "@/lib/workspace-copy";
 import { cloudCopy } from "@/lib/cloud-copy";
@@ -48,7 +49,7 @@ function Library() {
         subtitle={t.librarySubtitle}
         action={<Button className="shadow-glow" onClick={() => setNewStoryOpen(true)}><Plus /> {t.newStory.replace(/^\+\s*/, "")}</Button>}
       />
-      <BackupControls />
+      <div className="flex flex-wrap gap-2"><BackupControls /><ManuscriptExport /></div>
       {stories.length === 0 && <EmptyManuscripts />}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {stories.map((s) => {

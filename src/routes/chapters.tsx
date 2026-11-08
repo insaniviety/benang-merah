@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { ManuscriptExport } from "@/components/ManuscriptExport";
 
 export const Route = createFileRoute("/chapters")({
   head: () => ({
@@ -100,7 +101,7 @@ function Chapters() {
       <PageHeader
         title={t.navChapters}
         subtitle={`${activeStory.title} · ${chapters.length} ${t.chapters} · ${total.toLocaleString()} ${t.words}`}
-        action={<Button className="shadow-glow" onClick={() => setAdding(true)}><Plus /> {t.addChapter.replace(/^\+\s*/, "")}</Button>}
+        action={<div className="flex flex-wrap gap-2"><ManuscriptExport /><Button className="shadow-glow" onClick={() => setAdding(true)}><Plus /> {t.addChapter.replace(/^\+\s*/, "")}</Button></div>}
       />
 
       <div role="tablist" className="flex gap-1 rounded-xl border bg-card p-1">
