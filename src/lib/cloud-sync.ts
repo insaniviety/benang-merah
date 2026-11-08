@@ -6,8 +6,8 @@ export const cloudBundleSchema = z.object({
   story: shape.stories.element,
   characters: shape.characters,
   relations: shape.relations,
-  savedCanvas: shape.savedCanvases.valueSchema.nullable(),
-  timeline: shape.timelines.valueSchema.nullable(),
+  savedCanvas: shape.savedCanvases.valueType.nullable(),
+  timeline: shape.timelines.valueType.nullable(),
 });
 export type CloudBundle = z.infer<typeof cloudBundleSchema>;
 

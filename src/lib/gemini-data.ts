@@ -7,7 +7,7 @@ export const geminiInputSchema = z.object({
   lang: localDataSchema.shape.lang,
   story: localDataSchema.shape.stories.element,
   characters: localDataSchema.shape.characters,
-  canvas: localDataSchema.shape.savedCanvases.valueSchema.nullable(),
+  canvas: localDataSchema.shape.savedCanvases.valueType.nullable(),
   timeline: z.array(timelineEventSchema),
   modes: z.array(z.enum(["diction", "atmosphere", "pacing"])).max(3).default([]),
 });
