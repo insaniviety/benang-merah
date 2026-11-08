@@ -43,7 +43,7 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
     used.push(provider);
     try {
       const instructions = aiInstructions(input) + (provider === "gemini" ? ` Return ONLY a JSON object matching this schema, including every nullable field explicitly: ${JSON.stringify(z.toJSONSchema(wireSchema))}` : "");
-      const messages = [{ role: "user" as const, content: `${JSON.stringify(input)}\n${aiContract(input)}` }];
+      const messages = [{ role: "user" as const, content: `${provider === "gemini" ? instructions + "\n" : ""}${JSON.stringify(input)}\n${aiContract(input)}` }];
       let output: unknown;
       let finish: string;
       if (provider === "openai") {
@@ -71,6 +71,8 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
       const findings = parsed.data.findings.filter((f) => ["chronology","text","world","relationship"].includes(f.kind) || input.modes.includes(f.kind as typeof input.modes[number]));
       return { ok: true, output: input.task === "timeline" ? { events: parsed.data.events, findings: [] } : { events: [], findings }, provider, model: AI_MODELS[provider], attemptedProviders: used, runId };
     } catch (error) {
+      // Diagnostics contain error type only, never payloads, output or credentials.
+      console.warn("AI analysis failure", provider, error instanceof Error ? error.name : "unknown");
       if (request.signal.aborted) return { ok: false, error: "AI request stopped.", status: 499 };
       const failure = safeFailure(error);
       if (failure.persist) await blocks.write(provider, { reason: failure.message, status: failure.status ?? 403 });
