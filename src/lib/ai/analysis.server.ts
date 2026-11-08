@@ -57,11 +57,14 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
         const anthropic = createAnthropic({ apiKey: key, baseURL: "https://ai.gateway.lovable.dev/v1", headers: { "X-Lovable-AIG-SDK": "vercel-ai-sdk" }, fetch: correlation.fetch });
         const result = streamText({
           model: gateway ? gateway(AI_MODELS.gemini) : anthropic(AI_MODELS.claude),
-          instructions, messages, output: Output.object({ schema: wireSchema }), maxRetries: 0,
+          instructions, messages, ...(provider === "claude" ? { output: Output.object({ schema: wireSchema }) } : {}), maxRetries: 0,
           ...(provider === "claude" ? { maxOutputTokens: 16000 } : {}),
           abortSignal: request.signal,
         });
-        output = await result.output;
+        if (provider === "gemini") {
+          const text = await result.text;
+          output = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+        } else output = await result.output;
         finish = await result.finishReason;
         runId = gateway ? gateway.getRunId() : correlation.getRunId();
       }
