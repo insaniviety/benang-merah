@@ -5,7 +5,7 @@ export const AI_MODELS = { gemini: "google/gemini-3.8-flash", claude: "anthropic
 export function routeAi(provider: AiProvider, task: "timeline" | "inspector", modes: readonly string[]): ConcreteProvider[] {
   if (provider !== "auto") return [provider];
   if (task === "timeline") return ["gemini", "openai"];
-  return modes.some((m) => ["diction", "atmosphere", "pacing", "conflict", "repetition"].includes(m)) ? ["claude", "openai"] : ["openai", "gemini"];
+  return modes.some((m) => ["diction", "atmosphere", "pacing", "conflict", "repetition", "genre"].includes(m)) ? ["claude", "openai"] : ["openai", "gemini"];
 }
 export function canFallback(status: number | undefined, terminal = false) { return !terminal && status !== undefined && (status === 429 || status >= 500 && status <= 599); }
 export const aiProviderCopy = {

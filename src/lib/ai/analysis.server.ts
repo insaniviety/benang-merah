@@ -5,13 +5,13 @@ import { createResponsesCall } from "./responses.server.ts";
 import { createLovableAiGatewayProvider } from "./gateway-helpers.server.ts";
 import { createLovableAiGatewayRunIdFetch } from "./run-id.server.ts";
 import { aiInstructions, aiContract } from "./prompts.server";
-import { geminiOutputSchema, type GeminiInput } from "../gemini-data";
+import { geminiOutputSchema, inspectorFindings, type GeminiInput } from "../gemini-data";
 import { AI_MODELS, canFallback, routeAi, type ConcreteProvider } from "../ai-routing";
 import type { GeminiResult } from "../gemini.functions";
 
 // Wire schemas stay strict and unconstrained; existing local schemas validate the result.
 const event = z.object({ id: z.string().nullable(), time: z.string(), era: z.enum(["past", "present"]), track: z.number().int(), event: z.string(), location: z.string(), characters: z.array(z.string()), connection: z.string() }).strict();
-const finding = z.object({ kind: z.enum(["chronology","text","world","relationship","diction","atmosphere","pacing","conflict","repetition"]), body: z.string(), source: z.string(), chapterId: z.string().nullable(), paragraphIndex: z.number().int().nullable(), suggestion: z.string().nullable() }).strict();
+const finding = z.object({ kind: z.enum(["chronology","text","world","relationship","diction","atmosphere","pacing","conflict","repetition","genre"]), body: z.string(), source: z.string(), chapterId: z.string().nullable(), paragraphIndex: z.number().int().nullable(), suggestion: z.string().nullable() }).strict();
 const wireSchema = z.object({ events: z.array(event), findings: z.array(finding) }).strict();
 export type AccessBlock = { reason: string; status: number };
 export type BlockStore = { read: (provider: ConcreteProvider) => Promise<AccessBlock | null>; write: (provider: ConcreteProvider, block: AccessBlock) => Promise<void> };
@@ -71,7 +71,7 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
       if (finish !== "stop") return { ok: false, error: `AI returned no complete answer (${finish}).`, status: 422 };
       const parsed = geminiOutputSchema.safeParse(output);
       if (!parsed.success) return { ok: false, error: `Format hasil AI tidak valid / AI returned an invalid result (${parsed.error.issues.map((i) => i.path.join(".") + ": " + i.code).join("; ")}).`, status: 422 };
-      const findings = parsed.data.findings.filter((f) => ["chronology","text","world","relationship"].includes(f.kind) || input.modes.includes(f.kind as typeof input.modes[number]));
+      const findings = inspectorFindings(input, parsed.data.findings);
       return { ok: true, output: input.task === "timeline" ? { events: parsed.data.events, findings: [] } : { events: [], findings }, provider, model: AI_MODELS[provider], attemptedProviders: used, runId };
     } catch (error) {
       // Diagnostics contain error type only, never payloads, output or credentials.

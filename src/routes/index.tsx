@@ -16,7 +16,7 @@ import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
 import { useEffect, useRef } from "react";
-import { Settings2, Swords, Repeat } from "lucide-react";
+import { Settings2, Swords, Repeat, Tags } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { AI_PROVIDERS, aiProviderCopy } from "@/lib/ai-routing";
@@ -69,7 +69,7 @@ function Dashboard() {
     });
   }, [revising, activeStory]);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [modes, setModes] = useState<AiMode[]>([]);
+  const [modes, setModes] = useState<AiMode[]>(["genre"]);
   const [aiSettings, setAiSettingsState] = useState<AiSettings>(defaultAiSettings);
   const sc = aiSettingsCopy[lang];
   const pc = aiProviderCopy[lang];
@@ -179,7 +179,7 @@ function Dashboard() {
   if (!activeStory) return <div className="mx-auto max-w-6xl p-6 md:p-10"><h1 className="font-display text-3xl font-semibold">{t.libraryTitle}</h1><EmptyManuscripts /></div>;
 
   const words = activeStory.content.trim().split(/\s+/).filter(Boolean).length;
-  const signature = hashText(JSON.stringify([activeStory.chapters.map((c) => [c.id, c.content]), characters, savedCanvas, timeline]));
+  const signature = hashText(JSON.stringify([activeStory.chapters.map((c) => [c.id, c.content]), characters, savedCanvas, timeline, activeStory.genres, activeStory.synopsis]));
   const currentAlerts = aiResult?.signature === signature ? aiResult.findings : alerts;
   const visible = currentAlerts.filter((a) => !dismissed.includes(a.id));
 
@@ -297,7 +297,7 @@ function Dashboard() {
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
-          {(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing", "conflict", "repetition"] as const).map((kind) => {
+          {(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing", "conflict", "repetition", "genre"] as const).map((kind) => {
             const group = visible.filter((alert) => alert.kind === kind);
             if (!group.length) return null;
             const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][kind];
@@ -333,6 +333,7 @@ function AlertCard({ a, canApply, onApply, canRevise, onRevise, onDismiss }: { a
     pacing: { icon: Clock3, ring: "border-thread/50", chip: "bg-thread/20 text-thread" },
     conflict: { icon: Swords, ring: "border-destructive/50", chip: "bg-destructive/20 text-destructive" },
     repetition: { icon: Repeat, ring: "border-primary/50", chip: "bg-primary/20 text-primary" },
+    genre: { icon: Tags, ring: "border-success/50", chip: "bg-success/20 text-success" },
   }[a.kind];
   const Icon = styles.icon;
   return (
@@ -346,6 +347,7 @@ function AlertCard({ a, canApply, onApply, canRevise, onRevise, onDismiss }: { a
              <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : a.kind === "world" ? t.alertWorld : a.kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][a.kind]}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
+          {a.kind === "genre" && a.suggestion && <p className="mt-2 rounded-md bg-muted p-2 text-sm leading-relaxed"><span className="font-medium">{aiSettingsCopy[lang] && ({ id: "Rekomendasi", en: "Recommendation", "zh-CN": "建议", "zh-TW": "建議" } as const)[lang]}:</span> {a.suggestion}</p>}
            <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>
           <div className="mt-3 flex gap-2">
              {canApply && <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>}
