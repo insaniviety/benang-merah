@@ -16,7 +16,7 @@ import { AiPreviewDialog } from "@/components/AiPreviewDialog";
 import { EmptyManuscripts } from "@/components/EmptyManuscripts";
 import { aiModesCopy, type AiMode } from "@/lib/ai-modes-copy";
 import { useEffect, useRef } from "react";
-import { Settings2 } from "lucide-react";
+import { Settings2, Swords, Repeat } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { aiSettingsCopy, clearAiResults, defaultAiSettings, readAiResult, readAiSettings, writeAiResult, writeAiSettings, readCloudAiResult, writeCloudAiResult, clearCloudAiResults, hasLocalAiSettings, hasCloudAiResults, writeSessionAiResult, type AiSettings } from "@/lib/ai-settings";
@@ -290,7 +290,7 @@ function Dashboard() {
           {visible.length === 0 && (
             <p className="py-10 text-center text-sm text-muted-foreground">{t.alertNoFindings}</p>
           )}
-          {(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing"] as const).map((kind) => {
+          {(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing", "conflict", "repetition"] as const).map((kind) => {
             const group = visible.filter((alert) => alert.kind === kind);
             if (!group.length) return null;
             const heading = kind === "chronology" ? t.alertChronology : kind === "text" ? t.alertText : kind === "world" ? t.alertWorld : kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][kind];
@@ -324,6 +324,8 @@ function AlertCard({ a, canApply, onApply, canRevise, onRevise, onDismiss }: { a
     diction: { icon: BookUser, ring: "border-info/50", chip: "bg-info/20 text-info" },
     atmosphere: { icon: FileText, ring: "border-warning/50", chip: "bg-warning/20 text-warning" },
     pacing: { icon: Clock3, ring: "border-thread/50", chip: "bg-thread/20 text-thread" },
+    conflict: { icon: Swords, ring: "border-destructive/50", chip: "bg-destructive/20 text-destructive" },
+    repetition: { icon: Repeat, ring: "border-primary/50", chip: "bg-primary/20 text-primary" },
   }[a.kind];
   const Icon = styles.icon;
   return (

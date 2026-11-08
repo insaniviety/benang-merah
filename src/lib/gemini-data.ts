@@ -9,11 +9,11 @@ export const geminiInputSchema = z.object({
   characters: localDataSchema.shape.characters,
   canvas: localDataSchema.shape.savedCanvases.valueType.nullable(),
   timeline: z.array(timelineEventSchema),
-  modes: z.array(z.enum(["diction", "atmosphere", "pacing"])).max(3).default([]),
+  modes: z.array(z.enum(["diction", "atmosphere", "pacing", "conflict", "repetition"])).max(5).default([]),
 });
 export type GeminiInput = z.infer<typeof geminiInputSchema>;
 export const findingSchema = z.object({
-  kind: z.enum(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing"]), body: z.string(), source: z.string(),
+  kind: z.enum(["chronology", "text", "world", "relationship", "diction", "atmosphere", "pacing", "conflict", "repetition"]), body: z.string(), source: z.string(),
   chapterId: z.string().nullable(), paragraphIndex: z.number().int().nonnegative().nullable(), suggestion: z.string().nullable(),
 });
 export const geminiOutputSchema = z.object({
