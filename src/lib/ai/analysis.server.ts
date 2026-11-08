@@ -42,7 +42,7 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
   for (const provider of plan) {
     used.push(provider);
     try {
-      const instructions = aiInstructions(input) + (provider === "gemini" ? ` Return ONLY a JSON object matching this schema, including every nullable field explicitly: ${JSON.stringify(z.toJSONSchema(wireSchema))}` : "");
+      const instructions = aiInstructions(input) + " Event track must be an integer from 1 to 4; era must be past or present. Unknown time, location and connection must be empty strings, never null. Characters must be an array. paragraphIndex must be zero-based nonnegative or null." + (provider === "gemini" ? ` Return ONLY a JSON object matching this schema, including every nullable field explicitly: ${JSON.stringify(z.toJSONSchema(wireSchema))}` : "");
       const messages = [{ role: "user" as const, content: `${provider === "gemini" ? instructions + "\n" : ""}${JSON.stringify(input)}\n${aiContract(input)}` }];
       let output: unknown;
       let finish: string;
@@ -70,7 +70,7 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
       }
       if (finish !== "stop") return { ok: false, error: `AI returned no complete answer (${finish}).`, status: 422 };
       const parsed = geminiOutputSchema.safeParse(output);
-      if (!parsed.success) return { ok: false, error: "Format hasil AI tidak valid / AI returned an invalid result.", status: 422 };
+      if (!parsed.success) return { ok: false, error: `Format hasil AI tidak valid / AI returned an invalid result (${parsed.error.issues.map((i) => i.path.join(".") + ": " + i.code).join("; ")}).`, status: 422 };
       const findings = parsed.data.findings.filter((f) => ["chronology","text","world","relationship"].includes(f.kind) || input.modes.includes(f.kind as typeof input.modes[number]));
       return { ok: true, output: input.task === "timeline" ? { events: parsed.data.events, findings: [] } : { events: [], findings }, provider, model: AI_MODELS[provider], attemptedProviders: used, runId };
     } catch (error) {
