@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Clock3, GitBranch, MapPin, Pencil, Plus, Save, Sparkles, Trash2, Users } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -17,6 +17,8 @@ import { parseBackup } from "@/lib/local-data";
 import { mergeTimeline } from "@/lib/timeline-merge";
 import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
 import { cn } from "@/lib/utils";
+import { readAiSettings, writeAiSettings } from "@/lib/ai-settings";
+import { aiProviderCopy, type AiProvider } from "@/lib/ai-routing";
 
 type Event = { id: string; time: string; era: "past" | "present"; track: number; event: string; location: string; characters: string[]; connection: string };
 const blank = (): Event => ({ id: crypto.randomUUID(), time: "", era: "present", track: 1, event: "", location: "", characters: [], connection: "" });
@@ -32,7 +34,11 @@ export const Route = createFileRoute("/timeline")({
 });
 
 function Timeline() {
-  const { t, activeStory, characters, timelines, updateTimeline, saveTimeline, exportBackup } = useStore();
+  const { t, lang, accountId, activeStory, characters, timelines, updateTimeline, saveTimeline, exportBackup } = useStore();
+  const [provider, setProvider] = useState<AiProvider>("auto");
+  const [usedModel, setUsedModel] = useState<string | null>(null);
+  useEffect(() => { setProvider(readAiSettings(accountId).provider); }, [accountId]);
+  const changeProvider = (provider: AiProvider) => { setProvider(provider); writeAiSettings(accountId, { ...readAiSettings(accountId), provider }); };
   const callGemini = useServerFn(analyzeWithGemini);
   const [consentOpen, setConsentOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -60,9 +66,10 @@ function Timeline() {
     const storyId = activeStory.id;
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
-      const input = selectedStoryInput(snapshot, storyId, "timeline", true);
+      const input = selectedStoryInput(snapshot, storyId, "timeline", true, [], provider);
       const result = await callGemini({ data: input });
-      if (!result.ok) { toast.error(result.error); return; }
+      if (!result.ok) { toast.error(result.error); setConsentOpen(false); return; }
+      setUsedModel(result.model ?? null);
       updateTimeline(storyId, (current) => mergeTimeline(input.timeline, current, result.output.events, () => crypto.randomUUID()));
       setConsentOpen(false);
       toast.success(t.timelineGenerated);
@@ -90,6 +97,7 @@ function Timeline() {
         </div>}
       </div>
       {loading && <p role="status" className="text-sm text-muted-foreground">{events.length > 0 ? t.timelineUpdating : t.timelineGenerating}</p>}
+      {usedModel && <p role="status" className="text-xs text-muted-foreground">{aiProviderCopy[lang].used}: {usedModel}</p>}
       {ready && events.length === 0 ? (
         <div className="flex min-h-[55vh] flex-col items-center justify-center gap-5 text-center">
           <div className="flex size-20 items-center justify-center rounded-full border border-thread/30 bg-thread/10"><Clock3 className="size-9 text-thread" /></div>
@@ -121,7 +129,7 @@ function Timeline() {
           </li>})}
         </ol>
       </>}
-      <GeminiConsentDialog open={consentOpen} busy={loading} onClose={() => setConsentOpen(false)} onConfirm={() => void handleGenerate()} />
+      <GeminiConsentDialog open={consentOpen} busy={loading} onClose={() => setConsentOpen(false)} onConfirm={() => void handleGenerate()} provider={provider} onProviderChange={changeProvider} task="timeline" />
       <EventDialog key={editing?.id ?? "closed"} value={editing} names={characters.map((c) => c.name)} onClose={() => setEditing(null)} onSave={edit} />
       <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t.deleteEventConfirm}</AlertDialogTitle><AlertDialogDescription>{t.deleteEventDesc}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t.cancel}</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => { change(events.filter((e) => e.id !== deleting)); setDeleting(null); }}>{t.deleteLabel}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
