@@ -29,7 +29,7 @@ export const Route = createFileRoute("/chapters")({
   component: Chapters,
 });
 
-type Finding = { id: string; kind: "chronology" | "text" | "world" | "relationship" | "diction" | "atmosphere" | "pacing" | "conflict" | "repetition"; body: string; source: string; chapterId?: string; suggestion?: string };
+type Finding = { id: string; kind: "chronology" | "text" | "world" | "relationship" | "diction" | "atmosphere" | "pacing" | "conflict" | "repetition" | "genre"; body: string; source: string; chapterId?: string; suggestion?: string };
 
 function FindingsList({ findings, chapters, onOpen }: { findings: Finding[] | null; chapters: Chapter[]; onOpen: (chapterId: string) => void }) {
   const { t, lang } = useStore();
