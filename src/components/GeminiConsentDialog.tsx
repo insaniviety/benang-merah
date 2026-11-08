@@ -9,7 +9,7 @@ export function GeminiConsentDialog({ open, busy, onClose, onConfirm, modes, onM
   const { t, lang } = useStore();
   const copy = aiModesCopy[lang];
   const pc = aiProviderCopy[lang];
-  return <AlertDialog open={open} onOpenChange={(value) => { if (!value && !busy) onClose(); }}><AlertDialogContent>
+  return <AlertDialog open={open} onOpenChange={(value) => { if (!value && !busy) onClose(); }}><AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
     <AlertDialogHeader><AlertDialogTitle>{pc.consent}</AlertDialogTitle><AlertDialogDescription>{pc.privacy}</AlertDialogDescription></AlertDialogHeader>
     <div className="space-y-2"><label className="text-sm font-medium" htmlFor="consent-provider">{pc.title}</label><Select disabled={busy} value={provider} onValueChange={(value) => { const p = AI_PROVIDERS.find((p) => p === value); if (p) onProviderChange(p); }}><SelectTrigger id="consent-provider"><SelectValue /></SelectTrigger><SelectContent>{AI_PROVIDERS.map((p) => <SelectItem key={p} value={p}>{pc[p]}</SelectItem>)}</SelectContent></Select>
       <p className="text-xs text-muted-foreground">{routeAi(provider, task, modes ?? []).map((p) => pc[p]).join(" → ")}</p>

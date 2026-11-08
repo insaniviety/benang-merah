@@ -42,7 +42,7 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
   for (const provider of plan) {
     used.push(provider);
     try {
-      const instructions = aiInstructions(input);
+      const instructions = aiInstructions(input) + (provider === "gemini" ? ` Return ONLY a JSON object matching this schema, including every nullable field explicitly: ${JSON.stringify(z.toJSONSchema(wireSchema))}` : "");
       const messages = [{ role: "user" as const, content: `${JSON.stringify(input)}\n${aiContract(input)}` }];
       let output: unknown;
       let finish: string;
