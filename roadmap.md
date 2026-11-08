@@ -42,4 +42,6 @@
 - [x] Prevent characters without a manuscript and recover affected local records without losing valid writing data.
 - [x] Upgrade Zod to 4.6.6, fix compatibility regressions, and verify lockfile/security status.
 - [x] Test manuscript creation/editing/persistence and real AI request validation; record failures and verification limits in zod-upgrade-report.md.
-- [ ] Verify Gemini findings/suggestions on real chapter content after the Zod upgrade; blocked by Google HTTP 503 / UNAVAILABLE.
+- [x] Verify Gemini findings/suggestions on real chapter content after the Zod upgrade through the multi-provider gateway.
+- [x] Add automatic task routing and manual Gemini/Claude/OpenAI choices with explicit multi-provider consent.
+- [x] Verify routing, terminal-error safeguards, and live Inspector requests without changing local writing storage.
