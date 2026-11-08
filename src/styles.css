@@ -237,7 +237,8 @@
 .manuscript-section { margin-top: 3rem; }
 @media print {
   @page { size: A4; margin: 20mm 18mm; }
-  body:has(> .manuscript-print-root) { background: var(--manuscript-paper); color: var(--manuscript-ink); }
+  html:has(.manuscript-print-root) { background: var(--manuscript-paper); color-scheme: light; }
+  body:has(> .manuscript-print-root) { background: var(--manuscript-paper); color: var(--manuscript-ink); margin: 0 !important; padding: 0 !important; overflow: visible !important; }
   body:has(> .manuscript-print-root) > :not(.manuscript-print-root) { display: none !important; }
   .manuscript-print-root { display: block; background: var(--manuscript-paper); color: var(--manuscript-ink); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .manuscript-cover { min-height: 200mm; padding-top: 55mm; break-after: page; }
