@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_access_blocks: {
+        Row: {
+          created_at: string
+          provider: string
+          reason: string
+          status: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          provider: string
+          reason: string
+          status: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          provider?: string
+          reason?: string
+          status?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_results: {
         Row: {
           result: Json

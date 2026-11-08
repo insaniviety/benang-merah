@@ -1,11 +1,12 @@
-// AI Inspector preferences, kept per account on this device. Saved findings never leave the device.
-export type AiSettings = { enabled: boolean; persist: "account" | "session" | "cloud" };
-export const defaultAiSettings: AiSettings = { enabled: true, persist: "session" };
+import { AI_PROVIDERS, type AiProvider } from "./ai-routing";
+// AI preferences are account-isolated on this device; cloud findings require opt-in.
+export type AiSettings = { enabled: boolean; persist: "account" | "session" | "cloud"; provider: AiProvider };
+export const defaultAiSettings: AiSettings = { enabled: true, persist: "session", provider: "auto" };
 const key = (id: string) => `bm-ai-settings:${id}`;
 const resultKey = (id: string, storyId: string) => `bm-ai-result:${id}:${storyId}`;
 
 export function readAiSettings(accountId: string): AiSettings {
-  try { const v = JSON.parse(localStorage.getItem(key(accountId)) ?? "null"); if (v && typeof v.enabled === "boolean" && ["account","session","cloud"].includes(v.persist)) return v; } catch { /* ignore */ }
+  try { const v = JSON.parse(localStorage.getItem(key(accountId)) ?? "null"); if (v && typeof v.enabled === "boolean" && ["account","session","cloud"].includes(v.persist)) return { enabled: v.enabled, persist: v.persist, provider: AI_PROVIDERS.includes(v.provider) ? v.provider : "auto" }; } catch { /* ignore */ }
   return defaultAiSettings;
 }
 export function writeAiSettings(accountId: string, s: AiSettings) { localStorage.setItem(key(accountId), JSON.stringify(s)); }
