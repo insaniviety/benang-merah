@@ -40,5 +40,6 @@
 - [x] Separate local writing collections per account and replace header account controls with Sign Out.
 - [ ] Complete real email/password login, logout, and last-work restoration end-to-end verification after confirming the test account email; registration/profile creation and account storage isolation tests pass.
 - [x] Prevent characters without a manuscript and recover affected local records without losing valid writing data.
-- [ ] Upgrade Zod to 4.6.6, fix compatibility regressions, and verify lockfile/security status.
-- [ ] Test manuscript creation/editing/persistence and real AI request validation; record failures and verification limits.
+- [x] Upgrade Zod to 4.6.6, fix compatibility regressions, and verify lockfile/security status.
+- [x] Test manuscript creation/editing/persistence and real AI request validation; record failures and verification limits in zod-upgrade-report.md.
+- [ ] Verify Gemini findings/suggestions on real chapter content after the Zod upgrade; blocked by Google HTTP 503 / UNAVAILABLE.
