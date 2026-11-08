@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { localDataSchema, timelineEventSchema, type LocalData } from "./local-data";
 import { AI_PROVIDERS, type AiProvider } from "./ai-routing";
+import { getGenreLabel } from "./i18n";
 
 export const geminiInputSchema = z.object({
   consent: z.literal(true),
@@ -22,10 +23,15 @@ export const geminiOutputSchema = z.object({
   events: z.array(timelineEventSchema.omit({ id: true }).extend({ id: z.string().nullable().optional() })), findings: z.array(findingSchema),
 });
 export type GeminiOutput = z.infer<typeof geminiOutputSchema>;
+function genreAdviceText(text: string, lang: GeminiInput["lang"]) {
+  if (lang !== "zh-CN" && lang !== "zh-TW") return text;
+  const genres = ["Wuxia", "Xianxia", "Fantasy", "Action", "Hero", "Romance", "Sci-Fi", "Crime", "Mystery", "Thriller", "Horror", "Drama", "Historical", "Comedy", "Adventure", "Slice of Life", "Teen Fiction / Youth", "Teen Fiction", "Urban", "Supernatural"];
+  return genres.reduce((value, genre) => value.replace(new RegExp(`\\b${genre}\\b`, "gi"), getGenreLabel(genre === "Teen Fiction" ? "Teen Fiction / Youth" : genre, lang)), text);
+}
 export function inspectorFindings(input: GeminiInput, findings: GeminiOutput["findings"]): GeminiOutput["findings"] {
   if (input.task !== "inspector") return [];
   return findings.filter((f) => ["chronology", "text", "world", "relationship"].includes(f.kind) || input.modes.includes(f.kind as GeminiInput["modes"][number]))
-    .map((f) => f.kind === "genre" ? { ...f, chapterId: null, paragraphIndex: null } : f);
+    .map((f) => f.kind === "genre" ? { ...f, chapterId: null, paragraphIndex: null, body: genreAdviceText(f.body, input.lang), source: genreAdviceText(f.source, input.lang), suggestion: f.suggestion === null ? null : genreAdviceText(f.suggestion, input.lang) } : f);
 }
 export function selectedStoryInput(data: LocalData, storyId: string, task: GeminiInput["task"], consent: boolean, modes: GeminiInput["modes"] = [], provider: AiProvider = "auto"): GeminiInput {
   if (!consent) throw new Error("Consent required");

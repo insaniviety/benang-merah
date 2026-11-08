@@ -46,3 +46,11 @@ test("unchecked genre mode and timeline requests exclude genre recommendations",
   expect(inspectorFindings(selectedStoryInput(data, "one", "inspector", true), [genreFinding])).toEqual([]);
   expect(inspectorFindings(selectedStoryInput(data, "one", "timeline", true, ["genre"]), [genreFinding])).toEqual([]);
 });
+test("genre recommendations use matching Traditional and Simplified Chinese genre names", () => {
+  for (const [lang, expected] of [["zh-TW", "將愛情改為懸疑與犯罪"], ["zh-CN", "将爱情改为悬疑与犯罪"]]) {
+    const input = selectedStoryInput({ ...data, lang }, "one", "inspector", true, ["genre"]);
+    const suggestion = lang === "zh-TW" ? "將Romance改為Mystery與Crime" : "将Romance改为Mystery与Crime";
+    // Canonical labels can touch Chinese characters without whitespace.
+    expect(inspectorFindings(input, [{ ...genreFinding, suggestion }])[0].suggestion).toBe(expected);
+  }
+});
