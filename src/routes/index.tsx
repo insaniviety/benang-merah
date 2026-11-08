@@ -347,7 +347,7 @@ function AlertCard({ a, canApply, onApply, canRevise, onRevise, onDismiss }: { a
              <Badge variant="outline" className="whitespace-normal text-xs leading-snug">{a.kind === "chronology" ? t.alertChronology : a.kind === "text" ? t.alertText : a.kind === "world" ? t.alertWorld : a.kind === "relationship" ? t.alertRelationship : aiModesCopy[lang][a.kind]}</Badge>
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.body}</p>
-          {a.kind === "genre" && a.suggestion && <p className="mt-2 rounded-md bg-muted p-2 text-sm leading-relaxed"><span className="font-medium">{aiSettingsCopy[lang] && ({ id: "Rekomendasi", en: "Recommendation", "zh-CN": "建议", "zh-TW": "建議" } as const)[lang]}:</span> {a.suggestion}</p>}
+          {a.kind === "genre" && a.suggestion && <p className="mt-2 rounded-md bg-muted p-2 text-sm leading-relaxed"><span className="font-medium">{({ id: "Rekomendasi", en: "Recommendation", "zh-CN": "建议", "zh-TW": "建議" } as const)[lang]}:</span> {a.suggestion}</p>}
            <p className="mt-2 border-l-2 border-thread/50 pl-2 text-xs leading-relaxed text-muted-foreground">{t.alertSource}: {a.source}</p>
           <div className="mt-3 flex gap-2">
              {canApply && <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={onApply}><Check className="size-3" /> {t.apply}</Button>}
