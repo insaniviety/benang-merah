@@ -221,3 +221,28 @@
 
 .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 8px; }
+
+:root {
+  --manuscript-paper: #fff;
+  --manuscript-ink: #202020;
+}
+.manuscript-print-root { display: none; }
+.manuscript-preview { background: var(--manuscript-paper); color: var(--manuscript-ink); }
+.manuscript-pages { font-family: var(--font-prose); font-size: 12pt; line-height: 1.8; overflow-wrap: anywhere; }
+.manuscript-pages h1, .manuscript-pages h2 { color: inherit; letter-spacing: 0; line-height: 1.35; }
+.manuscript-pages h1 { font-size: 26pt; margin-bottom: 1em; }
+.manuscript-pages h2 { font-size: 18pt; margin-bottom: 1.5em; }
+.manuscript-pages p { white-space: pre-wrap; margin-bottom: 1em; orphans: 3; widows: 3; }
+.manuscript-cover { padding-block: 3rem; text-align: center; }
+.manuscript-section { margin-top: 3rem; }
+@media print {
+  @page { size: A4; margin: 20mm 18mm; }
+  html:has(.manuscript-print-root) { background: var(--manuscript-paper); color-scheme: light; }
+  body:has(> .manuscript-print-root) { background: var(--manuscript-paper); color: var(--manuscript-ink); margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+  body:has(> .manuscript-print-root) > :not(.manuscript-print-root) { display: none !important; }
+  .manuscript-print-root { display: block; background: var(--manuscript-paper); color: var(--manuscript-ink); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .manuscript-cover { min-height: 200mm; padding-top: 55mm; break-after: page; }
+  .manuscript-section { margin-top: 0; break-before: page; }
+  .manuscript-section:first-child { break-before: auto; }
+  .manuscript-pages h2 { break-after: avoid; }
+}

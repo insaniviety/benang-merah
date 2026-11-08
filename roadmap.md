@@ -46,3 +46,5 @@
 - [x] Add automatic task routing and manual Gemini/Claude/OpenAI choices with explicit multi-provider consent.
 - [x] Verify routing, terminal-error safeguards, and live Inspector requests without changing local writing storage.
 - [x] Add genre-fit analysis and nonautomatic genre recommendations in four languages; verify request gating and results.
+- [x] Add selected-manuscript Markdown/TXT downloads and print/save PDF with ordered chapters and optional front matter.
+- [x] Verify export contents, authenticated downloads, and desktop/mobile print preview; corrected dark paper margins and inspected all six PDF test pages.
