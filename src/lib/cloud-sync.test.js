@@ -9,6 +9,13 @@ test("existing local manuscripts enroll once while explicit local-only work stay
   expect(next.cloudDefaultsApplied).toBe(true);
   expect(enableDefaultCloud({ ...next, cloudStoryIds: [] }).cloudStoryIds).toEqual([]);
 });
+test("old backups enroll all existing manuscripts and retain notes locally", () => {
+  const data = { ...emptyWorkspace(), cloudDefaultsApplied: false, stories: [story("a", "2026-01-01"), story("b", "2026-01-01")], activeStoryId: "a", notes: [{ id: "n", text: "private note", createdAt: "", tag: "" }] };
+  const next = enableDefaultCloud(data);
+  expect(next.cloudStoryIds).toEqual(["a", "b"]);
+  expect(bundleFor(next, "a")).not.toHaveProperty("notes");
+  expect(next.notes[0].text).toBe("private note");
+});
 test("explicit local-only choice prevents cloud copies overwriting and re-enabling work", () => {
   const local = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", localOnlyStoryIds: ["a"] };
   const remote = { ...local, localOnlyStoryIds: [], stories: [{ ...story("a", "2026-02-01"), content: "remote" }] };
