@@ -10,7 +10,7 @@ import { emptyWorkspace, cleanLegacyPresets, removeManuscripts } from "./workspa
 import type { WriterAccount } from "@/components/AccountGate";
 import { accountCopy } from "./account-copy";
 import { supabase } from "@/integrations/supabase/client";
-import { bundleFor, bundleHash, reconcileCloud } from "./cloud-sync";
+import { bundleFor, bundleHash, reconcileCloud, enableDefaultCloud } from "./cloud-sync";
 
 export type Theme = "dark" | "light";
 export type ChapterStatus = "done" | "draft" | "revision" | "planned";
@@ -125,6 +125,7 @@ interface StoreValue {
   user: AuthUser | null;
   signOut: () => Promise<void>;
   cloudStoryIds: string[];
+  cloudSavedStoryIds: string[];
   cloudStatus: "idle" | "syncing" | "synced" | "error";
   setCloudSync: (storyId: string, enabled: boolean) => Promise<void>;
 }
@@ -145,6 +146,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [switchError, setSwitchError] = useState(false);
   const [unconfirmedStoryIds, setUnconfirmedStoryIds] = useState<string[]>([]);
   const [cloudStoryIds, setCloudStoryIds] = useState<string[]>([]);
+  const [cloudDefaultsApplied, setCloudDefaultsApplied] = useState(true);
+  const [localOnlyStoryIds, setLocalOnlyStoryIds] = useState<string[]>([]);
   const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>("idle");
   const [cloudSynced, setCloudSynced] = useState<Record<string, string>>({});
   const [allCharacters, setCharacters] = useState<Character[]>([]);
@@ -162,8 +165,17 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const [storageStatus, setStorageStatus] = useState<StoreValue["storageStatus"]>("loading");
   const [hydrated, setHydrated] = useState(false);
   const revision = useRef(0);
+  const cloudQueue = useRef<Promise<void>>(Promise.resolve());
+  const blockedCloudIds = useRef(new Set<string>());
+  const enqueueCloud = useCallback((run: () => Promise<void>) => {
+    const next = cloudQueue.current.catch(() => undefined).then(run);
+    cloudQueue.current = next;
+    return next;
+  }, []);
   const applyData = useCallback((data: LocalData) => {
     setUnconfirmedStoryIds(data.unconfirmedStoryIds); setCloudStoryIds(data.cloudStoryIds); setCloudSynced(data.cloudSynced);
+    setCloudDefaultsApplied(data.cloudDefaultsApplied); setLocalOnlyStoryIds(data.localOnlyStoryIds);
+    blockedCloudIds.current = new Set(data.localOnlyStoryIds);
     setStories(data.stories); setActiveStoryIdRaw(data.activeStoryId);
     setCharacters(data.characters); setRelations(data.relations); setSavedCanvases(data.savedCanvases);
     setTimelines(data.timelines); setNotes(data.notes); setTheme(data.theme); setLangState(data.lang);
@@ -188,6 +200,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
           data = cleanLegacyPresets(data);
           await writeLocalData(data);
         }
+        data = enableDefaultCloud(data);
+        await writeLocalData(data);
         try {
           const { data: rows, error } = await supabase.from("cloud_manuscripts").select("story_id, bundle");
           if (!error && rows) {
@@ -219,8 +233,8 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
 
   const data = useMemo<LocalData>(() => ({
     stories, activeStoryId, characters: allCharacters, relations: allRelations,
-    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, cloudStoryIds, cloudSynced, writerName, presetsCleaned: true,
-  }), [cloudSynced, stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName]);
+    savedCanvases, timelines, notes, user: null, theme, lang, unconfirmedStoryIds, cloudStoryIds, cloudSynced, cloudDefaultsApplied, localOnlyStoryIds, writerName, presetsCleaned: true,
+  }), [cloudDefaultsApplied, localOnlyStoryIds, cloudSynced, stories, activeStoryId, allCharacters, allRelations, savedCanvases, timelines, notes, user, theme, lang, unconfirmedStoryIds, cloudStoryIds, writerName]);
   useEffect(() => {
     if (!hydrated) return;
     const version = ++revision.current;
@@ -229,8 +243,9 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       if (revision.current === version) setStorageStatus("saved");
     }).catch(() => { if (revision.current === version) setStorageStatus("error"); });
   }, [data, hydrated, writeLocalData]);
-  const pushCloud = useCallback(async (source: LocalData, ids: string[]) => {
+  const pushCloud = useCallback((source: LocalData, ids: string[]) => enqueueCloud(async () => {
     const rows = ids.flatMap((id) => {
+      if (blockedCloudIds.current.has(id)) return [];
       const bundle = bundleFor(source, id);
       if (!bundle) return [];
       const json = bundleHash(bundle);
@@ -241,10 +256,10 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
     const { error } = await supabase.from("cloud_manuscripts").upsert(
       rows.map((row) => ({ user_id: account.id, story_id: row.id, bundle: row.bundle as never, updated_at: new Date().toISOString() })),
     );
-    if (error) { setCloudStatus("error"); return; }
+    if (error) { setCloudStatus("error"); throw error; }
     setCloudSynced((prev) => ({ ...prev, ...Object.fromEntries(rows.map((row) => [row.id, row.json])) }));
     setCloudStatus("synced");
-  }, [account.id]);
+  }), [account.id, enqueueCloud]);
   useEffect(() => {
     if (!hydrated || !cloudStoryIds.length) return;
     const timer = setTimeout(() => { void pushCloud(data, cloudStoryIds).catch(() => setCloudStatus("error")); }, 2000);
@@ -253,28 +268,37 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   useEffect(() => {
     const retry = () => { void pushCloud(data, cloudStoryIds).catch(() => setCloudStatus("error")); };
     window.addEventListener("online", retry);
-    return () => window.removeEventListener("online", retry);
-  }, [data, cloudStoryIds, pushCloud]);
+    const timer = setInterval(() => { if (hydrated && navigator.onLine) retry(); }, 30000);
+    return () => { window.removeEventListener("online", retry); clearInterval(timer); };
+  }, [data, cloudStoryIds, pushCloud, hydrated]);
   const setCloudSync = useCallback(async (storyId: string, enabled: boolean) => {
     if (enabled) {
+      blockedCloudIds.current.delete(storyId);
+      setLocalOnlyStoryIds((prev) => prev.filter((id) => id !== storyId));
       setCloudStoryIds((prev) => prev.includes(storyId) ? prev : [...prev, storyId]);
       await pushCloud(data, [storyId]);
     } else {
+      blockedCloudIds.current.add(storyId);
       setCloudStatus("syncing");
-      const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", storyId);
-      if (error) { setCloudStatus("error"); throw error; }
+      try {
+        await enqueueCloud(async () => {
+          const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", storyId);
+          if (error) throw error;
+        });
+      } catch (error) { blockedCloudIds.current.delete(storyId); setCloudStatus("error"); throw error; }
+      setLocalOnlyStoryIds((prev) => prev.includes(storyId) ? prev : [...prev, storyId]);
       setCloudSynced((prev) => { const n = { ...prev }; delete n[storyId]; return n; });
       setCloudStoryIds((prev) => prev.filter((id) => id !== storyId));
       setCloudStatus("synced");
     }
-  }, [data, pushCloud]);
+  }, [data, pushCloud, enqueueCloud]);
   const exportBackup = useCallback(async () => {
     await writeLocalData(data);
     return makeBackup(data);
   }, [data, writeLocalData]);
   const importBackup = useCallback(async (next: LocalData) => {
     ++revision.current;
-    const restored = { ...next, writerName, user: null, presetsCleaned: true };
+    const restored = enableDefaultCloud({ ...next, cloudSynced: {}, writerName, user: null, presetsCleaned: true });
     await writeLocalData(restored);
     applyData(restored);
     setCanvasReady(true); setHydrated(true); setStorageStatus("saved");
@@ -282,8 +306,13 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
   const deleteStory = useCallback(async (id: string) => {
     if (!data.stories.some((story) => story.id === id)) return;
     if (data.cloudStoryIds.includes(id)) {
-      const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", id);
-      if (error) throw error;
+      blockedCloudIds.current.add(id);
+      try {
+        await enqueueCloud(async () => {
+          const { error } = await supabase.from("cloud_manuscripts").delete().eq("story_id", id);
+          if (error) throw error;
+        });
+      } catch (error) { blockedCloudIds.current.delete(id); throw error; }
     }
     const cloudSyncedNext = { ...data.cloudSynced }; delete cloudSyncedNext[id];
     const next = { ...removeManuscripts(data, new Set([id])), cloudStoryIds: data.cloudStoryIds.filter((x) => x !== id), cloudSynced: cloudSyncedNext };
@@ -295,7 +324,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       setPendingSwitch(null);
       setStorageStatus("saved");
     } catch (error) { setStorageStatus("error"); throw error; }
-  }, [data, applyData, writeLocalData]);
+  }, [data, applyData, writeLocalData, enqueueCloud]);
   const updateTimeline = useCallback((id: string, next: TimelineEvent[] | ((current: TimelineEvent[]) => TimelineEvent[])) => {
     setTimelines((prev) => ({ ...prev, [id]: { draft: typeof next === "function" ? next(prev[id]?.draft ?? []) : next, saved: prev[id]?.saved ?? null } }));
   }, []);
@@ -355,6 +384,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
     const story: Story = { ...s, id: uid(), updatedAt: new Date().toISOString(), chapters: [], content: "" };
     requestSwitch(() => {
       setStories((prev) => [story, ...prev]);
+      setCloudStoryIds((prev) => [...prev, story.id]);
       setActiveStoryIdRaw(story.id);
     });
   }, [requestSwitch]);
@@ -405,6 +435,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       if (!stories.some((story) => story.id === storyId)) {
         const story: Story = { id: uid(), title: dictionaries[lang].autoStoryTitle, genres: [], language: lang, synopsis: "", updatedAt: new Date().toISOString(), chapters: [], content: "" };
         setStories((prev) => [story, ...prev]);
+        setCloudStoryIds((prev) => [...prev, story.id]);
         setActiveStoryIdRaw(story.id);
         storyId = story.id;
       }
@@ -464,6 +495,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       lang,
       setLang,
       cloudStoryIds, cloudStatus, setCloudSync,
+      cloudSavedStoryIds: cloudStoryIds.filter((id) => cloudSynced[id] === bundleHash(bundleFor(data, id))),
       t: dictionaries[lang],
       stories,
       activeStory: stories.find((s) => s.id === activeStoryId),
@@ -496,7 +528,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
       user,
       signOut,
     }),
-    [account.id, deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signOut, cloudStoryIds, cloudStatus, setCloudSync],
+    [data, cloudSynced, account.id, deleteStory, writerName, unconfirmedStoryIds, saveEditor, theme, toggleTheme, lang, setLang, stories, activeStoryId, setActiveStoryId, addStory, updateStory, updateContent, addChapter, updateChapter, openChapter, allCharacters, addCharacter, moveCharacter, updateCharacter, deleteCharacter, allRelations, addRelation, updateRelation, deleteRelation, savedCanvas, canvasDirty, saveCanvas, timelines, updateTimeline, saveTimeline, storageStatus, exportBackup, importBackup, notes, addNote, newStoryOpen, user, signOut, cloudStoryIds, cloudStatus, setCloudSync],
   );
 
   return <Ctx.Provider value={value}>
@@ -522,7 +554,7 @@ export function StoreProvider({ children, account, onSignOut }: { children: Reac
             setClaiming(true); setClaimError(false);
             try {
               const legacy = await claimLegacyWorkspace(account.id);
-              if (legacy) { const next = { ...cleanLegacyPresets(legacy), writerName: account.name, user: null }; await writeLocalData(next); applyData(next); }
+              if (legacy) { const next = enableDefaultCloud({ ...cleanLegacyPresets(legacy), writerName: account.name, user: null }); await writeLocalData(next); applyData(next); }
               setLegacyAvailable(false);
             } catch { setClaimError(true); } finally { setClaiming(false); }
           }}>{accountCopy[lang].claim}</Button>
