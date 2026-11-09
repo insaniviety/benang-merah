@@ -11,6 +11,14 @@ export const cloudBundleSchema = z.object({
 });
 export type CloudBundle = z.infer<typeof cloudBundleSchema>;
 
+/** Enroll legacy work once, never undo a writer's explicit local-only choice. */
+export function enableDefaultCloud(data: LocalData): LocalData {
+  if (data.cloudDefaultsApplied) return data;
+  return { ...data, cloudDefaultsApplied: true,
+    cloudStoryIds: [...new Set([...data.cloudStoryIds, ...data.stories.map((s) => s.id)])]
+      .filter((id) => !data.localOnlyStoryIds.includes(id)) };
+}
+
 /** Collect everything that belongs to one manuscript. Notes are account-wide and stay local. */
 export function bundleFor(data: LocalData, storyId: string): CloudBundle | null {
   const story = data.stories.find((s) => s.id === storyId);
@@ -30,6 +38,7 @@ export function applyBundle(data: LocalData, raw: unknown, force = false): Local
   if (!parsed.success) return data;
   const b = parsed.data;
   const id = b.story.id;
+  if (data.localOnlyStoryIds.includes(id)) return data;
   const local = data.stories.find((s) => s.id === id);
   if (local && !force && local.updatedAt >= b.story.updatedAt) {
     return data.cloudStoryIds.includes(id) ? data : { ...data, cloudStoryIds: [...data.cloudStoryIds, id] };
@@ -93,5 +102,6 @@ export function reconcileCloud(data: LocalData, rows: { story_id: string; bundle
   const removed = next.cloudStoryIds.filter((id) => !remoteIds.has(id) && synced[id]);
   for (const id of removed) delete synced[id];
   for (const id of Object.keys(synced)) if (!remoteIds.has(id)) delete synced[id];
-  return { ...next, cloudStoryIds: next.cloudStoryIds.filter((id) => !removed.includes(id)), cloudSynced: synced };
+  return { ...next, cloudStoryIds: next.cloudStoryIds.filter((id) => !removed.includes(id)), cloudSynced: synced,
+    localOnlyStoryIds: [...new Set([...next.localOnlyStoryIds, ...removed])] };
 }

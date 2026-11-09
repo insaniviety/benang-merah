@@ -33,6 +33,8 @@ export const localDataSchema = z.object({
   savedCanvases: z.record(z.string(), canvas),
   unconfirmedStoryIds: z.array(z.string()).default([]),
   cloudStoryIds: z.array(z.string()).default([]),
+  cloudDefaultsApplied: z.boolean().default(false),
+  localOnlyStoryIds: z.array(z.string()).default([]),
   cloudSynced: z.record(z.string(), z.string()).default({}),
   timelines: z.record(z.string(), z.object({ draft: z.array(timelineEventSchema), saved: z.array(timelineEventSchema).nullable() })),
   notes: z.array(z.object({ id: z.string(), text: z.string(), createdAt: z.string(), tag: z.string() })),
