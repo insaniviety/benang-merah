@@ -1,7 +1,21 @@
 import { test, expect } from "bun:test";
-import { applyBundle, bundleFor } from "./cloud-sync";
+import { applyBundle, bundleFor, enableDefaultCloud } from "./cloud-sync";
 import { emptyWorkspace } from "./workspace-lifecycle";
 const story = (id, updatedAt) => ({ id, title: id, genres: [], language: "id", synopsis: "", updatedAt, chapters: [], content: "" });
+test("existing local manuscripts enroll once while explicit local-only work stays excluded", () => {
+  const data = { ...emptyWorkspace(), cloudDefaultsApplied: false, stories: [story("a", "2026-01-01"), story("b", "2026-01-01")], activeStoryId: "a", localOnlyStoryIds: ["b"] };
+  const next = enableDefaultCloud(data);
+  expect(next.cloudStoryIds).toEqual(["a"]);
+  expect(next.cloudDefaultsApplied).toBe(true);
+  expect(enableDefaultCloud({ ...next, cloudStoryIds: [] }).cloudStoryIds).toEqual([]);
+});
+test("explicit local-only choice prevents cloud copies overwriting and re-enabling work", () => {
+  const local = { ...emptyWorkspace(), stories: [story("a", "2026-01-01")], activeStoryId: "a", localOnlyStoryIds: ["a"] };
+  const remote = { ...local, localOnlyStoryIds: [], stories: [{ ...story("a", "2026-02-01"), content: "remote" }] };
+  const next = reconcileCloud(local, [{ story_id: "a", bundle: bundleFor(remote, "a") }]);
+  expect(next.stories[0].content).toBe("");
+  expect(next.cloudStoryIds).toEqual([]);
+});
 test("cloud manuscript opens on a new device without touching local work", () => {
   const remote = { ...emptyWorkspace(), stories: [story("a", "2026-02-01")], activeStoryId: "a" };
   const local = { ...emptyWorkspace(), stories: [story("b", "2026-01-01")], activeStoryId: "b", notes: [{ id: "n", text: "x", createdAt: "", tag: "" }] };

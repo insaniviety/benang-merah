@@ -32,7 +32,7 @@ export const Route = createFileRoute("/library")({
 });
 
 function Library() {
-  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen, deleteStory, cloudStoryIds, cloudStatus, setCloudSync } = useStore();
+  const { t, lang, stories, activeStory, setActiveStoryId, setNewStoryOpen, deleteStory, cloudStoryIds, cloudSavedStoryIds, cloudStatus, setCloudSync } = useStore();
   const cc = cloudCopy[lang];
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,7 +75,7 @@ function Library() {
               </dl>
               <div className="mt-4 flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs" title={cc.hint}>
                 <span className={cn(cloudStoryIds.includes(s.id) ? "text-thread" : "text-muted-foreground")}>
-                  {cloudStoryIds.includes(s.id) ? `${cc.on} · ${cloudStatus === "syncing" ? cc.syncing : cloudStatus === "error" ? cc.error : cc.synced}` : cc.off}
+                  {cloudStoryIds.includes(s.id) ? `${cc.on} · ${cloudSavedStoryIds.includes(s.id) ? cc.synced : cloudStatus === "error" ? cc.error : cc.syncing}` : cc.off}
                 </span>
                 <Switch aria-label={cc.label} checked={cloudStoryIds.includes(s.id)} onCheckedChange={(v) => { void setCloudSync(s.id, v).catch(() => undefined); }} />
               </div>
