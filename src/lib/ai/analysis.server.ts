@@ -1,4 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { Output, streamText } from "ai";
 import { z } from "zod";
 import { createResponsesCall } from "./responses.server.ts";
@@ -31,10 +32,12 @@ function safeFailureLeaf(error: unknown): { status: number | undefined; message:
   return { status, message, retryAfter: Math.max(2000, (Number(e?.responseHeaders?.["retry-after"]) || 0) * 1000), terminal: accountProblem, persist: status === 402 || status === 403 };
 }
 
-export async function runAnalysis(input: GeminiInput, key: string, request: Request, blocks: BlockStore): Promise<GeminiResult> {
-  const plan = routeAi(input.provider, input.task, input.modes);
+export const OWN_GEMINI_MODEL = "gemini-2.5-flash";
+// ownGeminiKey: writer's personal Google AI Studio key, used for this request only, never stored or logged.
+export async function runAnalysis(input: GeminiInput, key: string, request: Request, blocks: BlockStore, ownGeminiKey?: string): Promise<GeminiResult> {
+  const plan: ConcreteProvider[] = ownGeminiKey ? ["gemini"] : routeAi(input.provider, input.task, input.modes);
   const used: ConcreteProvider[] = [];
-  for (const provider of plan) {
+  if (!ownGeminiKey) for (const provider of plan) {
     const block = await blocks.read(provider);
     if (block) return { ok: false, error: block.reason, status: block.status };
   }
@@ -52,11 +55,12 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
         finish = await call.result.finishReason;
         runId = call.getRunId();
       } else {
-        const gateway = provider === "gemini" ? createLovableAiGatewayProvider(key, runId, { baseURL: "https://ai.gateway.lovable.dev/v1" }) : null;
+        const own = ownGeminiKey ? createOpenAICompatible({ name: "google", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai", apiKey: ownGeminiKey }) : null;
+        const gateway = provider === "gemini" && !own ? createLovableAiGatewayProvider(key, runId, { baseURL: "https://ai.gateway.lovable.dev/v1" }) : null;
         const correlation = createLovableAiGatewayRunIdFetch(runId);
         const anthropic = createAnthropic({ apiKey: key, baseURL: "https://ai.gateway.lovable.dev/v1", headers: { "X-Lovable-AIG-SDK": "vercel-ai-sdk" }, fetch: correlation.fetch });
         const result = streamText({
-          model: gateway ? gateway(AI_MODELS.gemini) : anthropic(AI_MODELS.claude),
+          model: own ? own(OWN_GEMINI_MODEL) : gateway ? gateway(AI_MODELS.gemini) : anthropic(AI_MODELS.claude),
           instructions, messages, ...(provider === "claude" ? { output: Output.object({ schema: wireSchema }) } : {}), maxRetries: 0,
           ...(provider === "claude" ? { maxOutputTokens: 16000 } : {}),
           abortSignal: request.signal,
@@ -66,19 +70,19 @@ export async function runAnalysis(input: GeminiInput, key: string, request: Requ
           output = JSON.parse(text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
         } else output = await result.output;
         finish = await result.finishReason;
-        runId = gateway ? gateway.getRunId() : correlation.getRunId();
+        runId = own ? undefined : gateway ? gateway.getRunId() : correlation.getRunId();
       }
       if (finish !== "stop") return { ok: false, error: `AI returned no complete answer (${finish}).`, status: 422 };
       const parsed = geminiOutputSchema.safeParse(output);
       if (!parsed.success) return { ok: false, error: `Format hasil AI tidak valid / AI returned an invalid result (${parsed.error.issues.map((i) => i.path.join(".") + ": " + i.code).join("; ")}).`, status: 422 };
       const findings = inspectorFindings(input, parsed.data.findings);
-      return { ok: true, output: input.task === "timeline" ? { events: parsed.data.events, findings: [] } : { events: [], findings }, provider, model: AI_MODELS[provider], attemptedProviders: used, runId };
+      return { ok: true, output: input.task === "timeline" ? { events: parsed.data.events, findings: [] } : { events: [], findings }, provider, model: ownGeminiKey ? `${OWN_GEMINI_MODEL} (own key)` : AI_MODELS[provider], attemptedProviders: used, runId };
     } catch (error) {
       // Diagnostics contain error type only, never payloads, output or credentials.
       console.warn("AI analysis failure", provider, error instanceof Error ? error.name : "unknown");
       if (request.signal.aborted) return { ok: false, error: "AI request stopped.", status: 499 };
       const failure = safeFailure(error);
-      if (failure.persist) await blocks.write(provider, { reason: failure.message, status: failure.status ?? 403 });
+      if (failure.persist && !ownGeminiKey) await blocks.write(provider, { reason: failure.message, status: failure.status ?? 403 });
       if (used.length === plan.length || !canFallback(failure.status, failure.terminal)) return { ok: false, error: failure.message, status: failure.status };
       // One recovery layer only, never instant or timeout-based switching.
       if (failure.retryAfter > 30000) return { ok: false, error: failure.message, status: failure.status };

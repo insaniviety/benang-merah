@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { analyzeWithGemini } from "@/lib/gemini.functions";
+import { analyzeWithGemini, getAiQuota } from "@/lib/gemini.functions";
+import { readOwnKey, writeOwnKey, quotaCopy } from "@/lib/ai-settings";
+import { Input } from "@/components/ui/input";
 import { selectedStoryInput } from "@/lib/gemini-data";
 import { parseBackup } from "@/lib/local-data";
 import { GeminiConsentDialog } from "@/components/GeminiConsentDialog";
@@ -45,6 +47,10 @@ function Dashboard() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const [revising, setRevising] = useState<Alert | null>(null);
   const callGemini = useServerFn(analyzeWithGemini);
+  const fetchQuota = useServerFn(getAiQuota);
+  const [ownKey, setOwnKey] = useState("");
+  const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
+  const refreshQuota = () => { void fetchQuota().then(setQuota).catch(() => undefined); };
   const [consentOpen, setConsentOpen] = useState(false);
   const [aiResult, setAiResult] = useState<{ signature: string; findings: Alert[] } | null>(null);
   const [savingEditor, setSavingEditor] = useState(false);
@@ -73,6 +79,8 @@ function Dashboard() {
   const [aiSettings, setAiSettingsState] = useState<AiSettings>(defaultAiSettings);
   const sc = aiSettingsCopy[lang];
   const pc = aiProviderCopy[lang];
+  const qc = quotaCopy[lang];
+  useEffect(() => { setOwnKey(readOwnKey(accountId)); refreshQuota(); }, [accountId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [usedModel, setUsedModel] = useState<string | null>(null);
   useEffect(() => {
     setAiSettingsState(readAiSettings(accountId));
@@ -191,8 +199,9 @@ function Dashboard() {
     setAnalyzing(true); setAiError(null);
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
-      const result = await callGemini({ data: selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes, aiSettings.provider) });
-      if (!result.ok) { setAiError(result.error); setConsentOpen(false); return; }
+      const result = await callGemini({ data: { ...selectedStoryInput(snapshot, activeStory.id, "inspector", true, modes, aiSettings.provider), ownKey: ownKey || undefined } });
+      refreshQuota();
+      if (!result.ok) { setAiError(result.quota ? qc.exhausted(quota?.limit ?? 3) : result.error); setConsentOpen(false); return; }
       setUsedModel(result.model ?? null);
       const next = { signature, findings: result.output.findings.map((finding) => ({ ...finding, id: crypto.randomUUID(), chapterId: finding.chapterId ?? undefined, paragraphIndex: finding.paragraphIndex ?? undefined, suggestion: finding.suggestion ?? undefined })) };
       setAiResult(next); writeSessionAiResult(accountId, activeStory.id, next);
@@ -269,12 +278,14 @@ function Dashboard() {
               <p className="font-display font-semibold">{sc.title}</p>
               <label className="flex items-center justify-between gap-3"><span>{sc.enable}</span><Switch checked={aiSettings.enabled} onCheckedChange={(enabled) => updateAiSettings({ ...aiSettings, enabled })} /></label>
               <div className="space-y-2"><label htmlFor="inspector-provider" className="text-xs font-medium text-muted-foreground">{pc.title}</label><Select disabled={analyzing} value={aiSettings.provider} onValueChange={(value) => { const provider = AI_PROVIDERS.find((p) => p === value); if (provider) updateAiSettings({ ...aiSettings, provider }); }}><SelectTrigger id="inspector-provider"><SelectValue /></SelectTrigger><SelectContent>{AI_PROVIDERS.map((p) => <SelectItem key={p} value={p}>{pc[p]}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><label htmlFor="own-gemini-key" className="text-xs font-medium text-muted-foreground">{qc.own}</label><Input id="own-gemini-key" type="password" autoComplete="off" value={ownKey} placeholder={qc.placeholder} onChange={(e) => { setOwnKey(e.target.value); writeOwnKey(accountId, e.target.value); }} /><p className="text-[11px] leading-snug text-muted-foreground">{qc.hint}</p></div>
               <fieldset className="space-y-2"><legend className="mb-1 text-xs font-medium text-muted-foreground">{sc.store}</legend>
                 {(["session", "account", "cloud"] as const).map((p) => <label key={p} className="flex items-center gap-2"><input type="radio" name="ai-persist" className="accent-primary" checked={aiSettings.persist === p} onChange={() => updateAiSettings({ ...aiSettings, persist: p })} />{sc[p]}</label>)}
               </fieldset>
             </PopoverContent>
           </Popover>
           {!aiSettings.enabled && <p className="w-full text-xs text-muted-foreground">{sc.disabled}</p>}
+          <p role="status" className="w-full text-xs text-muted-foreground">{ownKey ? qc.unlimited : quota ? qc.left(Math.max(0, quota.limit - quota.used), quota.limit) : null}</p>
           {usedModel && <p role="status" className="w-full break-words text-xs text-muted-foreground">{pc.used}: {usedModel}</p>}
         </div>
         <div className="grid gap-2 border-b px-5 py-4 text-xs" aria-label="Sumber acuan pemeriksaan">

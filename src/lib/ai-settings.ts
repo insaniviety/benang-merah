@@ -53,3 +53,15 @@ export const aiFindingsTabCopy = {
   "zh-CN": { chapters: "章节列表", findings: "情节漏洞检查结果", empty: "这部书稿还没有情节漏洞检查结果。请在工作台的检查面板中运行。", general: "整体", suggestion: "建议", open: "在编辑器中打开" },
   "zh-TW": { chapters: "章節列表", findings: "情節漏洞檢查結果", empty: "這部書稿還沒有情節漏洞檢查結果。請在工作台的檢查面板中執行。", general: "整體", suggestion: "建議", open: "在編輯器中開啟" },
 } as const;
+
+// Personal Gemini key stays on this device for this account; sent only with a consented request.
+const ownKeyName = (id: string) => `bm-own-gemini-key:${id}`;
+export function readOwnKey(accountId: string) { try { return localStorage.getItem(ownKeyName(accountId)) ?? ""; } catch { return ""; } }
+export function writeOwnKey(accountId: string, value: string) { const v = value.trim(); if (v) localStorage.setItem(ownKeyName(accountId), v); else localStorage.removeItem(ownKeyName(accountId)); }
+
+export const quotaCopy = {
+  id: { left: (n: number, l: number) => `Kuota gratis: ${n}/${l} tersisa hari ini`, unlimited: "Memakai kunci pribadi — tanpa batas", own: "Kunci API Gemini pribadi (opsional)", placeholder: "Tempel kunci dari Google AI Studio", hint: "Gratis: buka aistudio.google.com → Get API key → tempel di sini. Disimpan hanya di perangkat ini.", exhausted: (l: number) => `Kuota harian (${l}/${l}) sudah terpakai. Reset pukul 07:00 WIB (00:00 UTC), atau tempel kunci API Gemini pribadi di Pengaturan AI untuk analisis tanpa batas.` },
+  en: { left: (n: number, l: number) => `Free quota: ${n}/${l} left today`, unlimited: "Using your own key — unlimited", own: "Personal Gemini API key (optional)", placeholder: "Paste a key from Google AI Studio", hint: "Free: open aistudio.google.com → Get API key → paste here. Stored only on this device.", exhausted: (l: number) => `Today's free quota (${l}/${l}) is used up. It resets at 00:00 UTC, or paste your own Gemini API key in AI settings for unlimited checks.` },
+  "zh-CN": { left: (n: number, l: number) => `免费额度：今天剩余 ${n}/${l} 次`, unlimited: "正在使用个人密钥 — 不限次数", own: "个人 Gemini API 密钥（可选）", placeholder: "粘贴 Google AI Studio 的密钥", hint: "免费：打开 aistudio.google.com → Get API key → 粘贴到这里。仅保存在本设备。", exhausted: (l: number) => `今日免费额度（${l}/${l}）已用完。将于 UTC 00:00 重置，或在 AI 设置中粘贴个人 Gemini API 密钥以无限使用。` },
+  "zh-TW": { left: (n: number, l: number) => `免費額度：今天剩餘 ${n}/${l} 次`, unlimited: "正在使用個人金鑰 — 不限次數", own: "個人 Gemini API 金鑰（選填）", placeholder: "貼上 Google AI Studio 的金鑰", hint: "免費：開啟 aistudio.google.com → Get API key → 貼到這裡。僅保存在本裝置。", exhausted: (l: number) => `今日免費額度（${l}/${l}）已用完。將於 UTC 00:00 重置，或在 AI 設定中貼上個人 Gemini API 金鑰以無限使用。` },
+} as const;

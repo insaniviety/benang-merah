@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeWithGemini } from "@/lib/gemini.functions";
+import { readOwnKey, quotaCopy } from "@/lib/ai-settings";
 import { selectedStoryInput } from "@/lib/gemini-data";
 import { parseBackup } from "@/lib/local-data";
 import { mergeTimeline } from "@/lib/timeline-merge";
@@ -67,8 +68,8 @@ function Timeline() {
     try {
       const snapshot = parseBackup(JSON.parse(await exportBackup()));
       const input = selectedStoryInput(snapshot, storyId, "timeline", true, [], provider);
-      const result = await callGemini({ data: input });
-      if (!result.ok) { toast.error(result.error); setConsentOpen(false); return; }
+      const result = await callGemini({ data: { ...input, ownKey: readOwnKey(accountId) || undefined } });
+      if (!result.ok) { toast.error(result.quota ? quotaCopy[lang].exhausted(3) : result.error); setConsentOpen(false); return; }
       setUsedModel(result.model ?? null);
       updateTimeline(storyId, (current) => mergeTimeline(input.timeline, current, result.output.events, () => crypto.randomUUID()));
       setConsentOpen(false);

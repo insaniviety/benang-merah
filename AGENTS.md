@@ -30,3 +30,4 @@
 - Sync Plot Hole results to the cloud only when the writer picks the account-sync option, storing findings plus a hashed fingerprint (never manuscript text); switching away deletes cloud copies.
 - Normalize genre findings as manuscript-wide advisories with no paragraph target and include genre/synopsis in result fingerprints; this prevents applying label advice as prose or retaining outdated genre analyses.
 - Compile selected-manuscript exports from live shared story state in numeric chapter order; use browser-local text downloads and a body-level print-only view so current drafts are included without exposing other workspace data or sending manuscripts to a server.
+- Enforce free AI quota server-side via atomic claim RPC with service-only refund on failure; personal provider keys stay device-local and are passed per request outside the model payload, so they never reach prompts, logs or storage.

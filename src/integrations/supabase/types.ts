@@ -38,6 +38,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_daily_usage: {
+        Row: {
+          usage_date: string
+          used: number
+          user_id: string
+        }
+        Insert: {
+          usage_date?: string
+          used?: number
+          user_id: string
+        }
+        Update: {
+          usage_date?: string
+          used?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_results: {
         Row: {
           result: Json
@@ -106,7 +124,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_ai_quota: { Args: { _limit: number }; Returns: number }
+      refund_ai_quota: { Args: { _user: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
